@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英才考级 · 多文件多表校验（wulangsir）</title>
+    <meta name="viewport" content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:"Microsoft YaHei",sans-serif; background-color:#f5f5f5; padding:20px; }
+        .container { max-width:1600px; margin:0 auto; background-color:white; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.1); padding:30px; }
+        h1 { text-align:center; color:#1e293b; margin-bottom:30px; font-size:28px; display:flex; align-items:center; justify-content:center; gap:10px; }
+        .upload-section { border:2px dashed #94a3b8; border-radius:12px; padding:40px; text-align:center; margin-bottom:30px; background-color:#f8fafc; cursor:pointer; transition:all 0.3s; }
+        .upload-section:hover { border-color:#3b82f6; background-color:#eff6ff; }
+        .upload-section.dragover { border-color:#2563eb; background-color:#dbeafe; }
+        .upload-icon { font-size:48px; color:#64748b; margin-bottom:10px; }
+        .upload-text { color:#475569; font-size:16px; }
+        .upload-text span { color:#2563eb; cursor:pointer; font-weight:bold; }
+        .file-info { margin-top:15px; color:#059669; font-weight:bold; word-break:break-word; max-height:80px; overflow-y:auto; }
+        .sheet-bar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; background:#f1f5f9; padding:12px 20px; border-radius: 12px; margin:0 0 20px 0; }
+        .sheet-label { font-weight:600; color:#475569; margin-right:8px; }
+        .sheet-tabs { display:flex; flex-wrap:wrap; gap:8px; flex:1; }
+        .sheet-tab { padding:6px 16px; border-radius: 10px; background:#CCC; border:1px solid #cbd5e1; color:#334155; cursor:pointer; font-size:0.9rem; transition:all 0.2s; display:inline-flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; /*white-space:nowrap;*/ display: block;}
+        .sheet-tab:hover { background:#e2e8f0; border-color:#94a3b8; }
+        .sheet-tab.active { background:#1e293b; border-color:#1e293b; color:white; }
+        .sheet-tab .badge { background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:20px; font-size:0.8rem; }
+        .sheet-tab.active .badge { background:rgba(0,0,0,0.2); }
+        .stats-cards { display:flex; gap:15px; margin:15px 0; flex-wrap:wrap; }
+        .stat-card { background:#f8fafc; border-radius:10px; padding:12px 20px; border-left:4px solid #3b82f6; box-shadow:0 2px 8px rgba(0,0,0,0.05); flex:1; min-width:150px; }
+        .stat-card.success { border-left-color:#10b981; }
+        .stat-card.warning { border-left-color:#f59e0b; }
+        .stat-card.error { border-left-color:#ef4444; }
+        .stat-card.field-warning { border-left-color:#f97316; background-color:#fff7ed; }
+        .stat-value { font-size:1.8rem; font-weight:600; color:#1e293b; }
+        .stat-label { font-size:0.9rem; color:#64748b; }
+        .filter-section { display:flex; flex-wrap:wrap; align-items:center; gap:12px 15px; background:#f8fafc; padding:15px 20px; border-radius:16px; margin:0 0 20px 0; border:1px solid #e2e8f0; }
+        .filter-item { display:flex; align-items:center; gap:6px; }
+        .filter-item label { font-weight:500; color:#475569; font-size:0.9rem; min-width:50px; }
+        .filter-item input, .filter-item select { padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; background:white; font-size:0.9rem; min-width:120px; outline:none; }
+        .filter-item input:focus, .filter-item select:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.1); }
+        .clear-filter { background:none; border:1px solid #94a3b8; color:#1e293b; border-radius:8px; padding:8px 16px; font-size:0.9rem; cursor:pointer; transition:0.15s; margin-left:auto; }
+        .clear-filter:hover { background:#e2e8f0; }
+        .btn-group { margin:20px 0; display:flex; gap:10px; justify-content:flex-end;/* flex-wrap:wrap; */}
+        .btn { padding:10px 24px; border:none; border-radius:8px; cursor:pointer; font-size:15px; font-weight:500; transition:all 0.3s; display:inline-flex; align-items:center; gap:8px; }
+        .btn-primary { background-color:#2563eb; color:white; }
+        .btn-primary:hover { background-color:#1d4ed8; }
+        .btn-success { background-color:#059669; color:white; }
+        .btn-success:hover { background-color:#047857; }
+        .btn-warning { background-color:#d97706; color:white; }
+        .btn-warning:hover { background-color:#b45309; }
+        .btn-danger { background-color:#dc2626; color:white; }
+        .btn-danger:hover { background-color:#b91c1c; }
+        .btn-info { background-color:#0891b2; color:white; }
+        .btn-info:hover { background-color:#0e7490; }
+        .btn-outline { background:white; border:1px solid #cbd5e1; color:#1e293b; }
+        .btn-outline:hover { background:#f1f5f9; }
+        .btn-sm { padding:4px 12px; font-size:13px; }
+        .table-container { margin-top:20px; overflow-x:auto; border:1px solid #e2e8f0; border-radius:12px; background:white; max-height:500px; overflow-y:auto; }
+        table { width:100%; border-collapse:collapse; font-size:14px; }
+        #dataTable { min-width:1150px; }
+        th { background:#f8fafc; color:#1e293b; font-weight:600; padding:16px 12px; border-bottom:2px solid #d1d9e6; text-align:left; position:sticky; top:0; z-index:20; white-space:nowrap; }
+        td { padding:8px 5px; border-bottom:1px solid #e2e8f0; color:#334155; white-space:nowrap; }
+        tr:hover td { background-color:#f1f5f9; }
+        td.error-cell { background-color:#fee2e2; color:#b91c1c; font-weight:500; position:relative; }
+        td.error-cell::after { content:"⚠️"; position:absolute; right:4px; top:2px; font-size:0.7rem; opacity:0.8; }
+        td.warning-cell { background-color:#fef3c7; color:#92400e; font-weight:500; position:relative; }
+        td.warning-cell::after { content:"⚠️"; position:absolute; right:4px; top:2px; font-size:0.7rem; opacity:0.8; }
+        tr.filtered-out { display:none; }
+        .status-badge { display:inline-block; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:500; }
+        .status-success { background:#d1fae5; color:#065f46; }
+        .status-error { background:#fee2e2; color:#b91c1c; }
+        .status-warning { background:#fed7aa; color:#92400e; }
+        .footer-info { display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding:10px 0; color:#64748b; }
+        #row-count { font-weight:500; background:#f1f5f9; padding:6px 16px; border-radius:20px; }
+        .error-summary { color:#b91c1c; font-weight:500; }
+        .loading { display:inline-block; width:20px; height:20px; border:3px solid #e2e8f0; border-top:3px solid #2563eb; border-radius:50%; animation:spin 1s linear infinite; }
+        @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
+        .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); }
+        .modal-content { background-color:white; margin:5% auto; padding:30px; border-radius:16px; width:90%; max-width:950px; max-height:85vh; overflow-y:auto; }
+        .modal-content h3 { margin-bottom:20px; color:#1e293b; }
+        .close-modal { float:right; font-size:28px; font-weight:bold; cursor:pointer; color:#64748b; }
+        .close-modal:hover { color:#1e293b; }
+        .edit-form { display:grid; grid-template-columns:repeat(2, 1fr); gap:15px 20px; }
+        .edit-item { display:flex; flex-direction:column; }
+        .edit-item label { font-weight:500; color:#475569; margin-bottom:4px; }
+        .edit-item input, .edit-item select { padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; }
+        .edit-item input:focus, .edit-item select:focus { border-color:#3b82f6; outline:none; box-shadow:0 0 0 3px #bfdbfe; }
+        .pinyin-row { display:flex; gap:8px; align-items:center; }
+        .pinyin-row input { flex:1; }
+        .modal-actions { grid-column:span 2; display:flex; justify-content:flex-end; gap:12px; margin-top:20px; }
+        .sheet-checkbox-list { max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; padding:15px; margin:15px 0; }
+        .sheet-checkbox-item { padding:8px; border-bottom:1px dashed #e2e8f0; display:flex; align-items:center; gap:10px; }
+        .sheet-checkbox-item:last-child { border-bottom:none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 英才考级 · 多文件多表校验（wulangsir+无浪科技）</h1>
+
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">点击 <span>选择文件</span> 或拖拽Excel文件（可多选）</div>
+            <div class="file-info" id="fileInfo"></div>
+            <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" multiple style="display: none;">
+        </div>
+
+        <div class="sheet-bar" id="sheetBar" style="display: none;">
+            <span class="sheet-label">📑 工作表:</span>
+            <div class="sheet-tabs" id="sheetTabs"></div>
+        </div>
+
+        <div class="stats-cards" id="statsCards"></div>
+
+        <div class="btn-group" id="btnGroup" style="display: none;">
+            <button class="btn btn-outline" id="validateBtn" style="display:none;">🔍 验证</button>
+            <button class="btn btn-success" id="exportBtn">📥 导出结果(多选)</button>
+            <button class="btn btn-info" id="exportGradeBtn">📊 导出人数汇总</button>
+            <button class="btn btn-warning" id="exportReportBtn">📋 导出报告(当前表)</button>
+        </div>
+
+        <div class="filter-section" id="filterSection" style="display: none;">
+            <div class="filter-item"><label>姓名</label><input type="text" id="filterName" placeholder="姓名..."></div>
+            <div class="filter-item"><label>性别</label><select id="filterGender"><option value="">全部</option><option value="男">男</option><option value="女">女</option></select></div>
+            <div class="filter-item"><label>专业编码</label><input type="text" id="filterMajorCode" placeholder="编码..."></div>
+            <div class="filter-item"><label>专业</label><input type="text" id="filterMajor" placeholder="专业名称..."></div>
+            <div class="filter-item"><label>等级</label><input type="text" id="filterLevel" placeholder="等级..."></div>
+            <div class="filter-item"><label>状态</label><select id="filterStatus"><option value="">全部</option><option value="success">正确</option><option value="warning">警告</option><option value="error">错误</option></select></div>
+            <button class="clear-filter" id="clearFilters">清除筛选</button>
+        </div>
+
+        <div class="table-container" id="tableContainer" style="display: none;">
+            <table id="dataTable">
+                <thead id="tableHeader"></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+
+        <div class="footer-info" id="footerInfo" style="display: none;">
+            <span id="row-count">共 0 行数据</span>
+            <span class="error-summary" id="errorSummary"></span>
+        </div>
+    </div>
+
+    <div id="errorDetailModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeErrorModal()">&times;</span>
+            <h3>❌ 错误详情</h3>
+            <table class="error-detail-table">
+                <thead><tr><th>姓名</th><th>字段</th><th>错误信息</th><th>建议</th></tr></thead>
+                <tbody id="errorDetailBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeEditModal()">&times;</span>
+            <h3>✏️ 编辑学员信息</h3>
+            <div class="edit-form" id="editFormContainer">
+                <div class="edit-item"><label>姓名</label><input type="text" id="edit_name"></div>
+                <div class="edit-item">
+                    <label>拼音</label>
+                    <div class="pinyin-row">
+                        <input type="text" id="edit_pinyin">
+                        <button class="btn btn-primary btn-sm" type="button" onclick="generatePinyinFromName()">点击生成</button>
+                    </div>
+                </div>
+                <div class="edit-item"><label>性别</label><select id="edit_gender"><option value="男">男</option><option value="女">女</option></select></div>
+                <div class="edit-item"><label>国籍</label><input type="text" id="edit_country" value="中国"></div>
+                <div class="edit-item"><label>民族</label><input type="text" id="edit_ethnicity" placeholder="汉"></div>
+                <div class="edit-item"><label>出生日期</label><input type="text" id="edit_birth" placeholder="2000-01-01"></div>
+                <div class="edit-item"><label>身份证号</label><input type="text" id="edit_idcard"></div>
+                <div class="edit-item"><label>专业编码</label><input type="text" id="edit_majorCode"></div>
+                <div class="edit-item"><label>专业</label><input type="text" id="edit_major"></div>
+                <div class="edit-item"><label>等级</label><input type="text" id="edit_level"></div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" onclick="closeEditModal()">取消</button>
+                    <button class="btn btn-success" onclick="saveEditRow()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="exportSheetModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeExportSheetModal()">&times;</span>
+            <h3>📎 选择要导出校验结果的工作表</h3>
+            <div id="sheetCheckboxList" class="sheet-checkbox-list"></div>
+            <div style="display: flex; gap:10px; justify-content: flex-end;">
+                <button class="btn btn-outline" onclick="toggleSelectAll(true)">全选</button>
+                <button class="btn btn-outline" onclick="toggleSelectAll(false)">全不选</button>
+                <button class="btn btn-success" onclick="exportSelectedSheets()">确定导出</button>
+                <button class="btn btn-outline" onclick="closeExportSheetModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="exportGradeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeGradeModal()">&times;</span>
+            <h3>📎 选择要统计人数的工作表</h3>
+            <div id="gradeSheetCheckboxList" class="sheet-checkbox-list"></div>
+            <div style="display: flex; gap:10px; justify-content: flex-end;">
+                <button class="btn btn-outline" onclick="toggleGradeSelectAll(true)">全选</button>
+                <button class="btn btn-outline" onclick="toggleGradeSelectAll(false)">全不选</button>
+                <button class="btn btn-success" onclick="exportGradeSummary()">确定导出</button>
+                <button class="btn btn-outline" onclick="closeGradeModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+      !function(N,A){"object"==typeof exports&&"object"==typeof module?module.exports=A():"function"==typeof define&&define.amd?define([],A):"object"==typeof exports?exports.Pinyin=A():N.Pinyin=A()}(this,function(){return function(N){function A(I){if(t[I])return t[I].exports;var U=t[I]={i:I,l:!1,exports:{}};return N[I].call(U.exports,U,U.exports,A),U.l=!0,U.exports}var t={};return A.m=N,A.c=t,A.i=function(N){return N},A.d=function(N,t,I){A.o(N,t)||Object.defineProperty(N,t,{configurable:!1,enumerable:!0,get:I})},A.n=function(N){var t=N&&N.__esModule?function(){return N.default}:function(){return N};return A.d(t,"a",t),t},A.o=function(N,A){return Object.prototype.hasOwnProperty.call(N,A)},A.p="",A(A.s=3)}([function(N,A,t){"use strict";function I(N){N&&("function"==typeof N&&(N=[N]),N.forEach&&N.forEach(function(N){"function"==typeof N&&N(o)}))}function U(N){return N||null===i?("object"===("undefined"==typeof Intl?"undefined":n(Intl))&&Intl.Collator?(f=new Intl.Collator(["zh-Hans-CN","zh-CN"]),i=1===Intl.Collator.supportedLocalesOf(["zh-CN"]).length):i=!1,i):i}function e(N){var A=o.UNIHANS,t=o.PINYINS,I=o.EXCEPTIONS,U={source:N};if(N in I)return U.type=E,U.target=I[N],U;var e=-1,r=void 0;if(N.charCodeAt(0)<256)return U.type=H,U.target=N,U;if((r=f.compare(N,G))<0)return U.type=u,U.target=N,U;if(0===r)U.type=E,e=0;else{if((r=f.compare(N,O))>0)return U.type=u,U.target=N,U;0===r&&(U.type=E,e=A.length-1)}if(U.type=E,e<0)for(var n=0,i=A.length-1;n<=i;){e=~~((n+i)/2);var S=A[e];if(0===(r=f.compare(N,S)))break;r>0?n=e+1:i=e-1}return r<0&&e--,U.target=t[e],U.target||(U.type=u,U.target=U.source),U}function r(N){if("string"!=typeof N)throw new Error("argument should be string.");if(!U())throw new Error("not support Intl or zh-CN language.");return N.split("").map(function(N){return e(N)})}var n="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(N){return typeof N}:function(N){return N&&"function"==typeof Symbol&&N.constructor===Symbol&&N!==Symbol.prototype?"symbol":typeof N},o=t(2),G="阿",O="鿿",H=1,E=2,u=3,i=null,f=void 0;N.exports={isSupported:U,parse:r,patchDict:I,genToken:e,convertToPinyin:function(N,A,t){return r(N).map(function(N){return t&&N.type===E?N.target.toLowerCase():N.target}).join(A||"")}}},function(N,A,t){"use strict";A=N.exports=function(N){N.EXCEPTIONS={"嗲":"DIA","碡":"ZHOU","聒":"GUO","炔":"QUE","蚵":"KE","砉":"HUA","嬷":"MO","蹊":"XI","丬":"PAN","霰":"XIAN","豉":"CHI","饧":"XING","帧":"ZHEN","芎":"XIONG","谁":"SHUI","钶":"KE"},N.UNIHANS[91]="伕",N.UNIHANS[347]="仚",N.UNIHANS[393]="诌",N.UNIHANS[39]="婤",N.UNIHANS[50]="腠",N.UNIHANS[369]="攸",N.UNIHANS[123]="乯",N.UNIHANS[171]="刕",N.UNIHANS[102]="佝",N.UNIHANS[126]="犿",N.UNIHANS[176]="列",N.UNIHANS[178]="刢",N.UNIHANS[252]="娝",N.UNIHANS[330]="偸"},A.shouldPatch=function(N){return"function"==typeof N&&("FOU"===N("伕").target&&"XIA"===N("仚").target&&"ZHONG"===N("诌").target&&"CHONG"===N("婤").target&&"CONG"===N("腠").target&&"YONG"===N("攸").target&&"HOU"===N("乯").target&&"LENG"===N("刕").target&&"GONG"===N("佝").target&&"HUAI"===N("犿").target&&"LIAO"===N("列").target&&"LIN"===N("刢").target&&"E"===N("钶").target)}},function(N,A,t){"use strict";var I=["阿","哎","安","肮","凹","八","挀","扳","邦","勹","陂","奔","伻","屄","边","灬","憋","汃","冫","癶","峬","嚓","偲","参","仓","撡","冊","嵾","曽","叉","芆","辿","伥","抄","车","抻","阷","吃","充","抽","出","欻","揣","巛","刅","吹","旾","逴","呲","匆","凑","粗","汆","崔","邨","搓","咑","呆","丹","当","刀","嘚","扥","灯","氐","甸","刁","爹","丁","丟","东","吺","厾","耑","垖","吨","多","妸","诶","奀","鞥","儿","发","帆","匚","飞","分","丰","覅","仏","紑","夫","旮","侅","甘","冈","皋","戈","给","根","刯","工","勾","估","瓜","乖","关","光","归","丨","呙","哈","咍","佄","夯","茠","诃","黒","拫","亨","噷","叿","齁","乎","花","怀","欢","巟","灰","昏","吙","丌","加","戋","江","艽","阶","巾","坕","冂","丩","凥","姢","噘","军","咔","开","刊","忼","尻","匼","肎","劥","空","抠","扝","夸","蒯","宽","匡","亏","坤","扩","垃","来","兰","啷","捞","肋","勒","崚","哩","俩","奁","良","撩","毟","拎","伶","溜","囖","龙","瞜","噜","驴","娈","掠","抡","罗","呣","妈","埋","嫚","牤","猫","么","呅","门","甿","咪","宀","喵","乜","民","名","谬","摸","哞","毪","嗯","拏","腉","囡","囔","孬","疒","娞","恁","能","妮","拈","娘","鸟","捏","囜","宁","妞","农","羺","奴","女","奻","疟","黁","挪","喔","讴","妑","拍","眅","乓","抛","呸","喷","匉","丕","囨","剽","氕","姘","乒","钋","剖","仆","七","掐","千","呛","悄","癿","亲","靑","卭","丘","区","峑","缺","夋","呥","穣","娆","惹","人","扔","日","茸","厹","邚","挼","堧","婑","瞤","捼","仨","毢","三","桒","掻","閪","森","僧","杀","筛","山","伤","弰","奢","申","升","尸","収","书","刷","衰","闩","双","脽","吮","说","厶","忪","捜","苏","狻","夊","孙","唆","他","囼","坍","汤","夲","忑","熥","剔","天","旫","帖","厅","囲","偷","凸","湍","推","吞","乇","穵","歪","弯","尣","危","昷","翁","挝","乌","夕","虲","仙","乡","灱","些","心","星","凶","休","吁","吅","削","坃","丫","恹","央","幺","倻","一","囙","应","哟","佣","优","扜","囦","曰","晕","帀","災","兂","匨","傮","则","贼","怎","増","扎","捚","沾","张","佋","蜇","贞","争","之","中","州","朱","抓","拽","专","妆","隹","宒","卓","乲","宗","邹","租","钻","厜","尊","昨","兙"],U=["A","AI","AN","ANG","AO","BA","BAI","BAN","BANG","BAO","BEI","BEN","BENG","BI","BIAN","BIAO","BIE","BIN","BING","BO","BU","CA","CAI","CAN","CANG","CAO","CE","CEN","CENG","CHA","CHAI","CHAN","CHANG","CHAO","CHE","CHEN","CHENG","CHI","CHONG","CHOU","CHU","CHUA","CHUAI","CHUAN","CHUANG","CHUI","CHUN","CHUO","CI","CONG","COU","CU","CUAN","CUI","CUN","CUO","DA","DAI","DAN","DANG","DAO","DE","DEN","DENG","DI","DIAN","DIAO","DIE","DING","DIU","DONG","DOU","DU","DUAN","DUI","DUN","DUO","E","EI","EN","ENG","ER","FA","FAN","FANG","FEI","FEN","FENG","FIAO","FO","FOU","FU","GA","GAI","GAN","GANG","GAO","GE","GEI","GEN","GENG","GONG","GOU","GU","GUA","GUAI","GUAN","GUANG","GUI","GUN","GUO","HA","HAI","HAN","HANG","HAO","HE","HEI","HEN","HENG","HM","HONG","HOU","HU","HUA","HUAI","HUAN","HUANG","HUI","HUN","HUO","JI","JIA","JIAN","JIANG","JIAO","JIE","JIN","JING","JIONG","JIU","JU","JUAN","JUE","JUN","KA","KAI","KAN","KANG","KAO","KE","KEN","KENG","KONG","KOU","KU","KUA","KUAI","KUAN","KUANG","KUI","KUN","KUO","LA","LAI","LAN","LANG","LAO","LE","LEI","LENG","LI","LIA","LIAN","LIANG","LIAO","LIE","LIN","LING","LIU","LO","LONG","LOU","LU","LV","LUAN","LVE","LUN","LUO","M","MA","MAI","MAN","MANG","MAO","ME","MEI","MEN","MENG","MI","MIAN","MIAO","MIE","MIN","MING","MIU","MO","MOU","MU","N","NA","NAI","NAN","NANG","NAO","NE","NEI","NEN","NENG","NI","NIAN","NIANG","NIAO","NIE","NIN","NING","NIU","NONG","NOU","NU","NV","NUAN","NVE","NUN","NUO","O","OU","PA","PAI","PAN","PANG","PAO","PEI","PEN","PENG","PI","PIAN","PIAO","PIE","PIN","PING","PO","POU","PU","QI","QIA","QIAN","QIANG","QIAO","QIE","QIN","QING","QIONG","QIU","QU","QUAN","QUE","QUN","RAN","RANG","RAO","RE","REN","RENG","RI","RONG","ROU","RU","RUA","RUAN","RUI","RUN","RUO","SA","SAI","SAN","SANG","SAO","SE","SEN","SENG","SHA","SHAI","SHAN","SHANG","SHAO","SHE","SHEN","SHENG","SHI","SHOU","SHU","SHUA","SHUAI","SHUAN","SHUANG","SHUI","SHUN","SHUO","SI","SONG","SOU","SU","SUAN","SUI","SUN","SUO","TA","TAI","TAN","TANG","TAO","TE","TENG","TI","TIAN","TIAO","TIE","TING","TONG","TOU","TU","TUAN","TUI","TUN","TUO","WA","WAI","WAN","WANG","WEI","WEN","WENG","WO","WU","XI","XIA","XIAN","XIANG","XIAO","XIE","XIN","XING","XIONG","XIU","XU","XUAN","XUE","XUN","YA","YAN","YANG","YAO","YE","YI","YIN","YING","YO","YONG","YOU","YU","YUAN","YUE","YUN","ZA","ZAI","ZAN","ZANG","ZAO","ZE","ZEI","ZEN","ZENG","ZHA","ZHAI","ZHAN","ZHANG","ZHAO","ZHE","ZHEN","ZHENG","ZHI","ZHONG","ZHOU","ZHU","ZHUA","ZHUAI","ZHUAN","ZHUANG","ZHUI","ZHUN","ZHUO","ZI","ZONG","ZOU","ZU","ZUAN","ZUI","ZUN","ZUO",""],e={"曾":"ZENG","沈":"SHEN","嗲":"DIA","碡":"ZHOU","聒":"GUO","炔":"QUE","蚵":"KE","砉":"HUA","嬤":"MO","嬷":"MO","蹒":"PAN","蹊":"XI","丬":"PAN","霰":"XIAN","莘":"XIN","豉":"CHI","饧":"XING","筠":"JUN","长":"CHANG","帧":"ZHEN","峙":"SHI","郍":"NA","芎":"XIONG","谁":"SHUI", "北": "BEI"};N.exports={PINYINS:U,UNIHANS:I,EXCEPTIONS:e}},function(N,A,t){"use strict";var I=t(0),U=t(1);I.isSupported()&&U.shouldPatch(I.genToken)&&I.patchDict(U),N.exports=I}])});
+    </script>
+
+    <script>
+        // ==================== 校验规则配置 ====================
+        const VALIDATION_RULES = {
+            majorCodeMap: { '020303': '街舞', '020301': '爵士舞' },
+            majorCodeValues: ['020303', '020301'],
+            majorNames: [ '书法', '舞蹈', '声乐', '器乐', '绘画', '素描', '水彩', '油画', '测试','街舞','爵士舞','中国舞'],
+            levelValues: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '一级', '二级', '三级', '四级', '五级','六级','七级','八级','九级','十级'],
+            genderValues: ['男', '女'],
+            countryValues: ['中国', '中华人民共和国'],
+            ethnicityValues: ['汉','回'],
+            provinceCodeMap: { '11':'北京市','12':'天津市','13':'河北省','14':'山西省','15':'内蒙古自治区','21':'辽宁省','22':'吉林省','23':'黑龙江省','31':'上海市','32':'江苏省','33':'浙江省','34':'安徽省','35':'福建省','36':'江西省','37':'山东省','41':'河南省','42':'湖北省','43':'湖南省','44':'广东省','45':'广西壮族自治区','46':'海南省','50':'重庆市','51':'四川省','52':'贵州省','53':'云南省','54':'西藏自治区','61':'陕西省','62':'甘肃省','63':'青海省','64':'宁夏回族自治区','65':'新疆维吾尔自治区','71':'台湾省','81':'香港特别行政区','82':'澳门特别行政区' }
+        };
+
+        // ==================== 全局变量 ====================
+        let workbooks = {
+            sheetList: [],
+            sheetMap: {},
+            currentSheet: null
+        };
+        let currentFileNameList = '';
+        let validationResults = [];
+        let currentEditIndex = -1;
+
+        // ==================== 增强拼音覆盖及多音字表 ====================
+        const PINYIN_OVERRIDES = {
+            '钱': 'QIAN',
+            '乔': 'QIAO',
+            '谦': 'QIAN',
+            '骞': 'QIAN',
+            '倩': 'QIAN',
+            '茜': 'QIAN',
+            '纤': 'QIAN',
+            '欠': 'QIAN'
+        };
+
+        const POLYPHONIC_MAP = {
+            '折': ['ZHE', 'SHE'],
+            '翟': ['ZHAI', 'DI'],
+            '泊': ['BO', 'PO'],
+            '重': ['ZHONG', 'CHONG'],
+            '行': ['XING', 'HANG'],
+            '长': ['ZHANG', 'CHANG'],
+            '朝': ['ZHAO', 'CHAO'],
+            '乐': ['YUE', 'LE'],
+            '的': ['DI', 'DE', 'DI4'],
+            '和': ['HE', 'HUO', 'HU', 'HUO4'],
+            '了': ['LE', 'LIAO'],
+            '为': ['WEI', 'WEI4'],
+            '还': ['HAI', 'HUAN'],
+            '好': ['HAO', 'HAO4'],
+            '少': ['SHAO', 'SHAO4'],
+            '曾': ['ZENG', 'CENG'],
+            '沈': ['SHEN', 'CHEN'],
+            '区': ['QU', 'OU'],
+            '单': ['DAN', 'SHAN', 'CHAN'],
+            '解': ['JIE', 'XIE', 'JIE4'],
+            '朴': ['PU', 'PIAO', 'PO'],
+            '仇': ['QIU', 'CHOU'],
+            '查': ['CHA', 'ZHA'],
+            '盖': ['GAI', 'GE'],
+            '覃': ['QIN', 'TAN'],
+            '缪': ['MIAO', 'MIU', 'MOU'],
+            '句': ['JU', 'GOU'],
+            '员': ['YUAN', 'YUN', 'YUN4'],
+            '尉': ['WEI', 'YU'],
+            '燕': ['YAN', 'YAN4'],
+            '华': ['HUA', 'HUA4'],
+            '殷': ['YIN', 'YAN'],
+            '陆': ['LU', 'LIU'],
+            '艾': ['AI', 'YI'],
+            '阿': ['A', 'E'],
+            '洗': ['XI', 'XIAN'],
+            '秘': ['MI', 'BI'],
+            '便': ['BIAN', 'PIAN'],
+            '参': ['CAN', 'SHEN', 'CEN'],
+            '差': ['CHA', 'CHAI', 'CI'],
+            '称': ['CHENG', 'CHEN', 'CHENG4'],
+            '冲': ['CHONG', 'CHONG4'],
+            '传': ['CHUAN', 'ZHUAN'],
+            '创': ['CHUANG', 'CHUANG4'],
+            '弹': ['DAN', 'TAN'],
+            '斗': ['DOU', 'DOU4'],
+            '度': ['DU', 'DUO'],
+            '恶': ['E', 'WU', 'E4'],
+            '发': ['FA', 'FA4'],
+            '分': ['FEN', 'FEN4'],
+            '佛': ['FO', 'FU'],
+            '干': ['GAN', 'GAN4'],
+            '给': ['GEI', 'JI'],
+            '更': ['GENG', 'GENG4'],
+            '供': ['GONG', 'GONG4'],
+            '荷': ['HE', 'HE4'],
+            '横': ['HENG', 'HENG4'],
+            '划': ['HUA', 'HUA4'],
+            '会': ['HUI', 'KUAI'],
+            '混': ['HUN', 'HUN4'],
+            '几': ['JI', 'JI3'],
+            '奇': ['QI', 'JI'],
+            '系': ['XI', 'JI'],
+            '间': ['JIAN', 'JIAN4'],
+            '降': ['JIANG', 'XIANG'],
+            '教': ['JIAO', 'JIAO4'],
+            '角': ['JIAO', 'JUE'],
+            '节': ['JIE', 'JIE2'],
+            '尽': ['JIN', 'JIN4'],
+            '劲': ['JIN', 'JING'],
+            '据': ['JU', 'JU4'],
+            '卷': ['JUAN', 'JUAN4'],
+            '觉': ['JUE', 'JIAO'],
+            '卡': ['KA', 'QIA'],
+            '看': ['KAN', 'KAN4'],
+            '空': ['KONG', 'KONG4'],
+            '拉': ['LA', 'LA2'],
+            '累': ['LEI', 'LEI4', 'LEI2'],
+            '笼': ['LONG', 'LONG3'],
+            '率': ['LV', 'SHUAI'],
+            '埋': ['MAI', 'MAN'],
+            '没': ['MEI', 'MO'],
+            '蒙': ['MENG', 'MENG3', 'MENG2'],
+            '眯': ['MI', 'MI3'],
+            '靡': ['MI', 'MI2'],
+            '模': ['MO', 'MU'],
+            '娜': ['NA', 'NUO'],
+            '难': ['NAN', 'NAN4'],
+            '宁': ['NING', 'NING4'],
+            '迫': ['PO', 'PAI'],
+            '铺': ['PU', 'PU4'],
+            '仆': ['PU', 'PU2'],
+            '栖': ['QI', 'XI'],
+            '浅': ['QIAN', 'JIAN'],
+            '强': ['QIANG', 'QIANG4', 'JIANG'],
+            '悄': ['QIAO', 'QIAO3'],
+            '翘': ['QIAO', 'QIAO4'],
+            '切': ['QIE', 'QIE4'],
+            '亲': ['QIN', 'QING'],
+            '曲': ['QU', 'QU3'],
+            '圈': ['QUAN', 'JUAN', 'QUAN4'],
+            '任': ['REN', 'REN4'],
+            '散': ['SAN', 'SAN4'],
+            '丧': ['SANG', 'SANG4'],
+            '色': ['SE', 'SHAI'],
+            '扇': ['SHAN', 'SHAN4'],
+            '稍': ['SHAO', 'SHAO4'],
+            '舍': ['SHE', 'SHE4'],
+            '省': ['SHENG', 'XING'],
+            '识': ['SHI', 'ZHI'],
+            '属': ['SHU', 'ZHU'],
+            '术': ['SHU', 'ZHU'],
+            '数': ['SHU', 'SHU4', 'SHUO'],
+            '似': ['SI', 'SHI'],
+            '趟': ['TANG', 'TANG4'],
+            '提': ['TI', 'DI'],
+            '挑': ['TIAO', 'TIAO3'],
+            '帖': ['TIE', 'TIE4', 'TIE3'],
+            '通': ['TONG', 'TONG4'],
+            '同': ['TONG', 'TONG4'],
+            '吐': ['TU', 'TU4'],
+            '瓦': ['WA', 'WA4'],
+            '王': ['WANG', 'WANG4'],
+            '为': ['WEI', 'WEI4'],
+            '蔚': ['WEI', 'YU'],
+            '乌': ['WU', 'WU4'],
+            '吓': ['XIA', 'HE'],
+            '鲜': ['XIAN', 'XIAN3'],
+            '相': ['XIANG', 'XIANG4'],
+            '巷': ['XIANG', 'HANG'],
+            '肖': ['XIAO', 'XIAO4'],
+            '血': ['XUE', 'XIE'],
+            '兴': ['XING', 'XING4'],
+            '旋': ['XUAN', 'XUAN4'],
+            '压': ['YA', 'YA4'],
+            '哑': ['YA', 'YA3'],
+            '咽': ['YAN', 'YAN4', 'YE'],
+            '要': ['YAO', 'YAO4'],
+            '叶': ['YE', 'XIE'],
+            '遗': ['YI', 'WEI'],
+            '应': ['YING', 'YING4'],
+            '佣': ['YONG', 'YONG4'],
+            '与': ['YU', 'YU4', 'YU2'],
+            '予': ['YU', 'YU3'],
+            '吁': ['YU', 'XU'],
+            '员': ['YUAN', 'YUN'],
+            '晕': ['YUN', 'YUN4'],
+            '载': ['ZAI', 'ZAI4'],
+            '脏': ['ZANG', 'ZANG4'],
+            '择': ['ZE', 'ZHAI'],
+            '扎': ['ZHA', 'ZA', 'ZHA2'],
+            '轧': ['ZHA', 'YA'],
+            '炸': ['ZHA', 'ZHA4'],
+            '占': ['ZHAN', 'ZHAN4'],
+            '涨': ['ZHANG', 'ZHANG4'],
+            '着': ['ZHAO', 'ZHE', 'ZHUO'],
+            '正': ['ZHENG', 'ZHENG4'],
+            '只': ['ZHI', 'ZHI3'],
+            '中': ['ZHONG', 'ZHONG4'],
+            '种': ['ZHONG', 'ZHONG4', 'CHONG'],
+            '轴': ['ZHOU', 'ZHOU4'],
+            '转': ['ZHUAN', 'ZHUAN4'],
+            '赚': ['ZHUAN', 'ZUAN'],
+            '幢': ['ZHUANG', 'CHUANG'],
+            '着': ['ZHAO', 'ZHE', 'ZHUO'],
+            '仔': ['ZI', 'ZAI'],
+            '作': ['ZUO', 'ZUO4']
+        };
+
+        function getPossibleReadings(char) {
+            let readings = [];
+            if (POLYPHONIC_MAP[char]) {
+                readings.push(...POLYPHONIC_MAP[char]);
+            }
+            try {
+                const ex = Pinyin.EXCEPTIONS || {};
+                if (ex[char]) {
+                    readings.push(ex[char]);
+                }
+            } catch (e) {}
+            return [...new Set(readings.map(r => r.toUpperCase()))];
+        }
+
+        // ==================== 工具函数 ====================
+        function escapeHtml(str) {
+            if (!str && str !== 0) return '';
+            return String(str).replace(/[&<>"]/g, m => {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                if (m === '"') return '&quot;';
+                return m;
+            });
+        }
+        function levenshteinDistance(a, b) {
+            if (a.length === 0) return b.length;
+            if (b.length === 0) return a.length;
+            const matrix = []; for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+            for (let i = 1; i <= b.length; i++) for (let j = 1; j <= a.length; j++) matrix[i][j] = (b.charAt(i-1)===a.charAt(j-1))? matrix[i-1][j-1] : Math.min(matrix[i-1][j-1]+1, matrix[i][j-1]+1, matrix[i-1][j]+1);
+            return matrix[b.length][a.length];
+        }
+
+        function getStandardPinyin(name) {
+            if (!name) return '';
+            try {
+                const tokens = Pinyin.parse(name);
+                let pinyin = '';
+                tokens.forEach(v => {
+                    if (v.type === 2 || v.type === 1) {
+                        let target = v.target;
+                        if (v.source && PINYIN_OVERRIDES[v.source]) {
+                            target = PINYIN_OVERRIDES[v.source];
+                        }
+                        pinyin += (pinyin ? ' ' : '') + target;
+                    }
+                });
+                return pinyin.toUpperCase();
+            } catch (e) { return name.split('').map(c => /[a-zA-Z0-9]/.test(c) ? c.toUpperCase() : `[${c}]`).join(' '); }
+        }
+
+        function getPolyphonicDetails(name) {
+            const chars = name.split('');
+            return chars.map(c => ({
+                char: c,
+                readings: getPossibleReadings(c)
+            })).filter(item => item.readings.length > 0);
+        }
+
+        function validatePinyin(name, inputPinyin) {
+            if (!name || !inputPinyin) return { valid: false, message: '姓名或拼音不能为空', status: 'error', suggestion: '' };
+
+            const inputUpper = inputPinyin.toUpperCase().trim().replace(/\s+/g, ' ');
+            const standard = getStandardPinyin(name).toUpperCase();
+
+            if (inputUpper === standard) return { valid: true, message: '', status: 'success', suggestion: standard };
+
+            const inputNoSpace = inputUpper.replace(/\s+/g, '');
+            const stdNoSpace = standard.replace(/\s+/g, '');
+            if (inputNoSpace === stdNoSpace) {
+                return { valid: false, message: '拼音字母正确，但缺少空格分隔', status: 'warning', suggestion: standard };
+            }
+
+            const inParts = inputUpper.split(/\s+/).filter(p => p.length > 0);
+            const stdParts = standard.split(/\s+/).filter(p => p.length > 0);
+            const nameChars = name.split('');
+
+            if (inParts.length !== nameChars.length) {
+                if (inParts.length < nameChars.length) {
+                    let allMatch = true;
+                    for (let i = 0; i < inParts.length; i++) {
+                        if (inParts[i] !== stdParts[i]) {
+                            allMatch = false;
+                            break;
+                        }
+                    }
+                    if (allMatch) {
+                        const missing = stdParts.slice(inParts.length).join(' ');
+                        return { valid: false, message: `可能缺少拼音: “${missing}”`, status: 'warning', suggestion: standard };
+                    }
+                } else if (inParts.length > nameChars.length) {
+                    return { valid: false, message: `拼音段数偏多，请检查空格`, status: 'warning', suggestion: standard };
+                }
+            }
+
+            if (inParts.length === nameChars.length) {
+                let mismatchFound = false;
+                let mismatchMsg = '';
+                for (let i = 0; i < nameChars.length; i++) {
+                    const ch = nameChars[i];
+                    const userPinyin = inParts[i];
+                    const stdPinyin = stdParts[i];
+
+                    const possible = getPossibleReadings(ch);
+                    if (possible.length > 0 && possible.includes(userPinyin)) {
+                        continue;
+                    }
+                    if (userPinyin === stdPinyin) {
+                        continue;
+                    }
+                    mismatchFound = true;
+                    if (possible.length > 0) {
+                        mismatchMsg = `“${ch}”拼音应为 ${possible.join('或')}`;
+                    } else {
+                        mismatchMsg = `“${ch}”拼音应为 ${stdPinyin}`;
+                    }
+                    break;
+                }
+                if (!mismatchFound) {
+                    return { valid: true, message: '', status: 'success', suggestion: standard };
+                } else {
+                    return { valid: false, message: mismatchMsg, status: 'error', suggestion: standard };
+                }
+            }
+
+            const dist = levenshteinDistance(inputNoSpace, stdNoSpace);
+            if (dist <= 3) {
+                return { valid: false, message: `拼音近似，但有${dist}处字母错误`, status: 'error', suggestion: standard };
+            }
+
+            return { valid: false, message: '拼写错误', status: 'error', suggestion: standard };
+        }
+
+        function validateIdCard(idcard) {
+            if (!idcard) return { valid: false, message: '身份证号不能为空', status: 'error' };
+            idcard = idcard.toString().trim().toUpperCase().replace(/\s+/g, '');
+            if (!/^\d{17}[\dX]$/.test(idcard)) return { valid: false, message: '位数/格式错误', status: 'error' };
+            const province = idcard.substr(0,2);
+            if (!VALIDATION_RULES.provinceCodeMap[province]) return { valid: false, message: '省份代码无效', status: 'error' };
+            const y=parseInt(idcard.substr(6,4)), m=parseInt(idcard.substr(10,2)), d=parseInt(idcard.substr(12,2));
+            const date = new Date(y,m-1,d);
+            if (date.getFullYear()!==y || date.getMonth()!==m-1 || date.getDate()!==d) return { valid: false, message: '出生日期无效', status: 'error' };
+            const age = new Date().getFullYear() - y;
+            if (age > 120) return { valid: false, message: '年龄超过120', status: 'warning' };
+            const factor = [7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2], parity = ['1','0','X','9','8','7','6','5','4','3','2'];
+            let sum = 0; for (let i=0;i<17;i++) sum += parseInt(idcard[i],10)*factor[i];
+            if (parity[sum%11] !== idcard[17]) return { valid: false, message: '校验码错误', status: 'error' };
+            const genderDigit = parseInt(idcard[16],10);
+            return { valid: true, message: '', status: 'success', expectedGender: genderDigit%2?'男':'女', expectedBirth: `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}` };
+        }
+
+        function validateGender(gender, expected) {
+            if (!gender) return { valid: false, message: '性别不能为空', status: 'error' };
+            gender = gender.toString().trim();
+            if (!VALIDATION_RULES.genderValues.includes(gender)) return { valid: false, message: '须为"男/女"', status: 'error' };
+            if (expected && gender !== expected) return { valid: false, message: `应为${expected}`, status: 'error' };
+            return { valid: true, message: '', status: 'success' };
+        }
+        function standardizeDate(dateStr) {
+            if (!dateStr) return '';
+            dateStr = dateStr.toString().trim();
+            if (typeof dateStr === 'number' || !isNaN(Number(dateStr)) && dateStr.length>5) { try { let d=XLSX.SSF.parse_date_code(Number(dateStr)); if(d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`; }catch(e){} }
+            let m = dateStr.match(/(\d{4})[\/\-\.年](\d{1,2})[\/\-\.月](\d{1,2})日?/);
+            if (m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+            return dateStr;
+        }
+        function validateBirth(birth, expected) {
+            if (!birth) return { valid: false, message: '出生日期不能为空', status: 'error' };
+            const bs = standardizeDate(birth);
+            if (!bs.match(/^\d{4}-\d{2}-\d{2}$/)) return { valid: false, message: '日期格式错误', status: 'error' };
+            if (expected && bs !== expected) return { valid: false, message: `应与身份证一致(${expected})`, status: 'error' };
+            return { valid: true, message: '', status: 'success' };
+        }
+        function validateMajorCode(code) {
+            if (!code || code.toString().trim()==='') return { valid: true, message: '无编码', status: 'success', skip: true };
+            code = code.toString().trim();
+            if (VALIDATION_RULES.majorCodeValues.includes(code)) return { valid: true, message: '', status: 'success' };
+            let similar = VALIDATION_RULES.majorCodeValues.find(c => c.includes(code)||code.includes(c));
+            if (similar) return { valid: false, message: `应为"${similar}"`, status: 'warning' };
+            return { valid: false, message: '编码错误', status: 'error' };
+        }
+        function validateMajor(major) {
+            if (!major) return { valid: false, message: '专业不能为空', status: 'error' };
+            major = major.toString().trim();
+            if (VALIDATION_RULES.majorNames.includes(major)) return { valid: true, message: '', status: 'success' };
+            let similar = VALIDATION_RULES.majorNames.find(m => m.includes(major)||major.includes(m));
+            if (similar) return { valid: false, message: `应为"${similar}"`, status: 'warning' };
+            return { valid: false, message: '专业名称错误', status: 'error' };
+        }
+        function validateLevel(level) {
+            if (!level) return { valid: false, message: '等级不能为空', status: 'error' };
+            level = level.toString().trim();
+            if (VALIDATION_RULES.levelValues.includes(level)) return { valid: true, message: '', status: 'success' };
+            if (!isNaN(level) && parseInt(level)>=1 && parseInt(level)<=10) return { valid: true, message: '', status: 'success' };
+            return { valid: false, message: '等级应为1-10级', status: 'error' };
+        }
+        function validateEthnicity(ethnicity) {
+            if (!ethnicity) return { valid: false, message: '民族不能为空', status: 'error' };
+            ethnicity = ethnicity.toString().trim();
+            if (ethnicity === '汉') return { valid: true, message: '', status: 'success' };
+            return { valid: false, message: '民族须为“汉”', status: 'error' };
+        }
+
+        function validateRow(row) {
+            const idCardResult = validateIdCard(row.idcard);
+            const pinyinResult = validatePinyin(row.name, row.pinyin);
+            const genderResult = validateGender(row.gender, idCardResult.expectedGender);
+            const birthResult = validateBirth(row.birth, idCardResult.expectedBirth);
+            const majorCodeResult = validateMajorCode(row.majorCode);
+            const majorResult = validateMajor(row.major);
+            const levelResult = validateLevel(row.level);
+            const ethnicityResult = validateEthnicity(row.ethnicity);
+
+            const errors = {
+                pinyin: pinyinResult.status === 'error',
+                gender: genderResult.status === 'error',
+                birth: birthResult.status === 'error',
+                idcard: idCardResult.status === 'error',
+                majorCode: majorCodeResult.status === 'error' && !majorCodeResult.skip,
+                major: majorResult.status === 'error',
+                level: levelResult.status === 'error',
+                ethnicity: ethnicityResult.status === 'error'
+            };
+            const warnings = {
+                pinyin: pinyinResult.status === 'warning',
+                gender: genderResult.status === 'warning',
+                birth: birthResult.status === 'warning',
+                idcard: idCardResult.status === 'warning',
+                majorCode: majorCodeResult.status === 'warning' && !majorCodeResult.skip,
+                major: majorResult.status === 'warning',
+                level: levelResult.status === 'warning',
+                ethnicity: ethnicityResult.status === 'warning'
+            };
+
+            const hasError = Object.values(errors).some(v => v);
+            const hasWarning = Object.values(warnings).some(v => v);
+
+            let overallStatus = 'success', overallMessage = '全部正确';
+            if (hasError) { overallStatus = 'error'; overallMessage = '存在错误'; }
+            else if (hasWarning) { overallStatus = 'warning'; overallMessage = '存在警告'; }
+
+            const errorDetails = [];
+            if (pinyinResult.status!=='success') errorDetails.push({field:'拼音', message:pinyinResult.message, suggestion:pinyinResult.suggestion});
+            if (genderResult.status!=='success') errorDetails.push({field:'性别', message:genderResult.message, suggestion:''});
+            if (birthResult.status!=='success') errorDetails.push({field:'出生日期', message:birthResult.message, suggestion:birthResult.suggestion||''});
+            if (idCardResult.status!=='success') errorDetails.push({field:'身份证', message:idCardResult.message, suggestion:idCardResult.expectedBirth||''});
+            if (majorCodeResult.status!=='success' && !majorCodeResult.skip) errorDetails.push({field:'专业编码', message:majorCodeResult.message, suggestion:''});
+            if (majorResult.status!=='success') errorDetails.push({field:'专业', message:majorResult.message, suggestion:''});
+            if (levelResult.status!=='success') errorDetails.push({field:'等级', message:levelResult.message, suggestion:''});
+            if (ethnicityResult.status!=='success') errorDetails.push({field:'民族', message:ethnicityResult.message, suggestion:''});
+
+            return {
+                ...row,
+                pinyinResult, genderResult, birthResult, idCardResult, majorCodeResult, majorResult, levelResult, ethnicityResult,
+                overallStatus, overallMessage, errorDetails,
+                errors, warnings
+            };
+        }
+
+        function findColumnIndex(headers, patterns) {
+            for (let i = 0; i < headers.length; i++) {
+                const header = headers[i].toLowerCase();
+                for (let pattern of patterns) {
+                    if (header.includes(pattern.toLowerCase())) {
+                        return i;
+                    }
+                }
+            }
+            return -1;
+        }
+
+        function parseMultipleFiles(files) {
+            let filePromises = [];
+            for (let file of files) {
+                let promise = new Promise((resolve) => {
+                    let reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            let data = new Uint8Array(e.target.result);
+                            let workbook = XLSX.read(data, { type: 'array' });
+                            resolve({ fileName: file.name, workbook });
+                        } catch (error) {
+                            console.error(`解析文件${file.name}失败`, error);
+                            resolve(null);
+                        }
+                    };
+                    reader.onerror = () => resolve(null);
+                    reader.readAsArrayBuffer(file);
+                });
+                filePromises.push(promise);
+            }
+
+            Promise.all(filePromises).then(results => {
+                let validResults = results.filter(r => r !== null);
+                if (validResults.length === 0) {
+                    alert('没有成功解析的文件');
+                    document.getElementById('fileInfo').innerText = '';
+                    return;
+                }
+
+                workbooks.sheetList = [];
+                workbooks.sheetMap = {};
+                workbooks.currentSheet = null;
+                currentFileNameList = validResults.map(r => r.fileName).join('; ');
+
+                validResults.forEach(({ fileName, workbook }) => {
+                    let sheetNames = workbook.SheetNames;
+                    sheetNames.forEach(sheetName => {
+                        let worksheet = workbook.Sheets[sheetName];
+                        let rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                        if (rows.length < 2) return;
+
+                        let headers = rows[0].map(h => String(h || '').trim());
+
+                        const nameIdx = findColumnIndex(headers, ['姓名', 'name']);
+                        const pinyinIdx = findColumnIndex(headers, ['拼音', 'pinyin','姓名拼音']);
+                        const genderIdx = findColumnIndex(headers, ['性别', 'gender']);
+                        const countryIdx = findColumnIndex(headers, ['国籍', 'country']);
+                        const ethnicityIdx = findColumnIndex(headers, ['民族', 'ethnicity', '种族']);
+                        const birthIdx = findColumnIndex(headers, ['出生', 'birth', '生日']);
+                        const idIdx = findColumnIndex(headers, ['身份证', '证件号码', '证件号', 'id number', 'idcard', 'id card']);
+                        const majorCodeIdx = findColumnIndex(headers, ['专业编码', '专业代码', 'major code', 'code']);
+                        const majorIdx = (() => {
+                            for (let i = 0; i < headers.length; i++) {
+                                const h = headers[i].toLowerCase();
+                                if ((h.includes('专业') || h.includes('major')) && !h.includes('编码') && !h.includes('代码') && !h.includes('code')) {
+                                    return i;
+                                }
+                                if (h.includes('报考专业') || h.includes('科目')) return i;
+                            }
+                            return -1;
+                        })();
+                        const levelIdx = findColumnIndex(headers, ['等级', '级别', '报考级别', 'level','报考别']);
+
+                        let sheetData = [];
+                        let rawRows = [];
+
+                        for (let i = 1; i < rows.length; i++) {
+                            let row = rows[i];
+                            if (!row || row.every(cell => !cell || cell === '')) continue;
+
+                            let birthValue = (birthIdx !== -1) ? row[birthIdx] || '' : '';
+                            if (typeof birthValue === 'number') {
+                                try {
+                                    let d = XLSX.SSF.parse_date_code(birthValue);
+                                    if (d) birthValue = `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+                                } catch (e) { birthValue = String(birthValue); }
+                            } else {
+                                birthValue = String(birthValue).trim();
+                            }
+
+                            let rowData = {
+                                name: nameIdx !== -1 ? String(row[nameIdx] || '').trim() : '',
+                                pinyin: pinyinIdx !== -1 ? String(row[pinyinIdx] || '').trim() : '',
+                                gender: genderIdx !== -1 ? String(row[genderIdx] || '').trim() : '',
+                                country: countryIdx !== -1 ? String(row[countryIdx] || '').trim() : '中国',
+                                ethnicity: ethnicityIdx !== -1 ? String(row[ethnicityIdx] || '').trim() : '',
+                                birth: birthValue,
+                                idcard: idIdx !== -1 ? String(row[idIdx] || '').trim() : '',
+                                majorCode: majorCodeIdx !== -1 ? String(row[majorCodeIdx] || '').trim() : '',
+                                major: majorIdx !== -1 ? String(row[majorIdx] || '').trim() : '',
+                                level: levelIdx !== -1 ? String(row[levelIdx] || '').trim() : ''
+                            };
+
+                            if (rowData.name) {
+                                sheetData.push(rowData);
+                                rawRows.push(row.slice());
+                            }
+                        }
+
+                        if (sheetData.length === 0) return;
+
+                        let uniqueId = fileName + "::" + sheetName;
+                        workbooks.sheetMap[uniqueId] = {
+                            headers,
+                            rawData: rawRows,
+                            data: sheetData,
+                            errors: sheetData.map(row => validateRow(row)),
+                            fileName,
+                            originalSheetName: sheetName
+                        };
+                        workbooks.sheetList.push(uniqueId);
+                    });
+                });
+
+                if (workbooks.sheetList.length === 0) {
+                    alert('所有文件均无有效数据行');
+                    document.getElementById('fileInfo').innerText = '';
+                    return;
+                }
+
+                workbooks.currentSheet = workbooks.sheetList[0];
+                validationResults = workbooks.sheetMap[workbooks.currentSheet].errors;
+
+                renderSheetTabs();
+                renderCurrentSheet();
+                updateStats();
+                document.getElementById('sheetBar').style.display = 'flex';
+                document.getElementById('btnGroup').style.display = 'flex';
+                document.getElementById('filterSection').style.display = 'flex';
+                document.getElementById('tableContainer').style.display = 'block';
+                document.getElementById('footerInfo').style.display = 'flex';
+                document.getElementById('fileInfo').innerHTML = `📁 已加载 ${validResults.length} 个文件，共 ${workbooks.sheetList.length} 个工作表 (${currentFileNameList})`;
+            });
+        }
+
+        function renderSheetTabs() {
+            const sheetTabs = document.getElementById('sheetTabs');
+            const html = workbooks.sheetList.map(uniqueId => {
+                let sheetInfo = workbooks.sheetMap[uniqueId];
+                if (!sheetInfo) return '';
+                let errs = sheetInfo.errors;
+                let eCnt = errs.filter(e => e.overallStatus === 'error').length;
+                let wCnt = errs.filter(e => e.overallStatus === 'warning').length;
+                let active = uniqueId === workbooks.currentSheet ? 'active' : '';
+                let displayName = sheetInfo.fileName + ' → ' + sheetInfo.originalSheetName;
+                return `<div class="sheet-tab ${active}" data-sheet="${uniqueId}">${displayName} <span class="badge">${errs.length}行</span>${eCnt?`<span class="badge" style="background:#dc2626;">${eCnt}错</span>`:''}${wCnt?`<span class="badge" style="background:#f59e0b;">${wCnt}警</span>`:''}</div>`;
+            }).join('');
+            sheetTabs.innerHTML = html;
+            document.querySelectorAll('.sheet-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    let uid = this.dataset.sheet;
+                    if (uid && uid !== workbooks.currentSheet) {
+                        workbooks.currentSheet = uid;
+                        validationResults = workbooks.sheetMap[uid].errors;
+                        renderSheetTabs();
+                        renderCurrentSheet();
+                        updateStats();
+                    }
+                });
+            });
+        }
+
+        function updateStats() {
+            if (!validationResults) return;
+            const total = validationResults.length;
+            const correct = validationResults.filter(r=>r.overallStatus==='success').length;
+            const warning = validationResults.filter(r=>r.overallStatus==='warning').length;
+            const error = validationResults.filter(r=>r.overallStatus==='error').length;
+            const fieldWarningCount = validationResults.reduce((acc, row) => acc + Object.values(row.warnings).filter(v => v).length, 0);
+            document.getElementById('statsCards').innerHTML = `
+                <div class="stat-card success"><div class="stat-value">${correct}</div><div class="stat-label">✅ 完全正确</div></div>
+                <div class="stat-card warning"><div class="stat-value">${warning}</div><div class="stat-label">⚠️ 整体警告</div></div>
+                <div class="stat-card error"><div class="stat-value">${error}</div><div class="stat-label">❌ 整体错误</div></div>
+                <div class="stat-card field-warning"><div class="stat-value">${fieldWarningCount}</div><div class="stat-label">🔸 字段警告数</div></div>
+                <div class="stat-card"><div class="stat-value">${total}</div><div class="stat-label">📊 总行数</div></div>
+            `;
+        }
+
+        function renderCurrentSheet() {
+            const tableHeader = document.getElementById('tableHeader');
+            const tableBody = document.getElementById('tableBody');
+            const rowCountSpan = document.getElementById('row-count');
+            const errorSummarySpan = document.getElementById('errorSummary');
+
+            if (!validationResults || !validationResults.length) {
+                tableHeader.innerHTML = '';
+                tableBody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:40px;">暂无数据</td></tr>';
+                if (rowCountSpan) rowCountSpan.innerText = '共 0 行数据';
+                if (errorSummarySpan) errorSummarySpan.innerText = '';
+                return;
+            }
+
+            tableHeader.innerHTML = `<tr><th>姓名</th><th>拼音</th><th>性别</th><th>国籍</th><th>民族</th><th>出生日期</th><th>身份证号</th><th>专业编码</th><th>专业</th><th>等级</th><th>校验状态</th><th>操作</th></tr>`;
+
+            const filterName = document.getElementById('filterName');
+            const filterGender = document.getElementById('filterGender');
+            const filterMajorCode = document.getElementById('filterMajorCode');
+            const filterMajor = document.getElementById('filterMajor');
+            const filterLevel = document.getElementById('filterLevel');
+            const filterStatus = document.getElementById('filterStatus');
+
+            const nameF = filterName ? filterName.value.trim().toLowerCase() : '';
+            const genderF = filterGender ? filterGender.value : '';
+            const majorCodeF = filterMajorCode ? filterMajorCode.value.trim().toLowerCase() : '';
+            const majorF = filterMajor ? filterMajor.value.trim().toLowerCase() : '';
+            const levelF = filterLevel ? filterLevel.value.trim().toLowerCase() : '';
+            const statusF = filterStatus ? filterStatus.value : '';
+
+            let visibleCount = 0, errorCount = 0, warningCount = 0, rowsHtml = '';
+
+            validationResults.forEach((row, idx) => {
+                let match = true;
+                if (nameF && !row.name.toLowerCase().includes(nameF)) match = false;
+                if (match && genderF && row.gender !== genderF) match = false;
+                if (match && majorCodeF && !row.majorCode.toLowerCase().includes(majorCodeF)) match = false;
+                if (match && majorF && !row.major.toLowerCase().includes(majorF)) match = false;
+                if (match && levelF && !row.level.toLowerCase().includes(levelF)) match = false;
+                if (match && statusF && row.overallStatus !== statusF) match = false;
+
+                if (match) visibleCount++;
+                if (row.overallStatus === 'error') errorCount++;
+                if (row.overallStatus === 'warning') warningCount++;
+
+                const rowClass = match ? '' : 'filtered-out';
+                const getCellClass = (field) => (row.errors[field] ? 'error-cell' : (row.warnings[field] ? 'warning-cell' : ''));
+                const tooltip = row.errorDetails.map(d=>`${d.field}:${d.message}`).join('\n');
+
+                rowsHtml += `<tr class="${rowClass}" title="${escapeHtml(tooltip)}">
+                    <td class="${getCellClass('name')}">${escapeHtml(row.name)}</td>
+                    <td class="${getCellClass('pinyin')}">${escapeHtml(row.pinyin)}</td>
+                    <td class="${getCellClass('gender')}">${escapeHtml(row.gender)}</td>
+                    <td>${escapeHtml(row.country)}</td>
+                    <td class="${getCellClass('ethnicity')}">${escapeHtml(row.ethnicity)}</td>
+                    <td class="${getCellClass('birth')}">${escapeHtml(row.birth)}</td>
+                    <td class="${getCellClass('idcard')}">${escapeHtml(row.idcard)}</td>
+                    <td class="${getCellClass('majorCode')}">${escapeHtml(row.majorCode)}</td>
+                    <td class="${getCellClass('major')}">${escapeHtml(row.major)}</td>
+                    <td class="${getCellClass('level')}">${escapeHtml(row.level)}</td>
+                    <td><span class="status-badge status-${row.overallStatus}">${row.overallMessage}</span></td>
+                    <td style="display:flex;gap:4px;">
+                        ${row.errorDetails.length ? `<button class="btn btn-danger btn-sm" style="padding:4px 8px;" onclick="showErrorDetails(${idx})">详情</button>` : ''}
+                        <button class="btn btn-primary btn-sm" style="padding:4px 8px;" onclick="showEditModal(${idx})">编辑</button>
+                    </td>
+                </tr>`;
+            });
+            tableBody.innerHTML = rowsHtml;
+            if (rowCountSpan) rowCountSpan.innerText = `显示 ${visibleCount} 行 (共 ${validationResults.length} 行)`;
+            if (errorSummarySpan) errorSummarySpan.innerText = (errorCount||warningCount) ? `⚠️ 发现 ${errorCount} 条整体错误, ${warningCount} 条整体警告` : '✅ 所有数据校验通过';
+        }
+
+        window.showErrorDetails = function(index) {
+            let row = validationResults[index];
+            if (!row) return;
+            const errorDetailBody = document.getElementById('errorDetailBody');
+            errorDetailBody.innerHTML = row.errorDetails.map(d => `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(d.field)}</td><td>${escapeHtml(d.message)}</td><td>${escapeHtml(d.suggestion)}</td></tr>`).join('');
+            document.getElementById('errorDetailModal').style.display = 'block'; document.body.style.overflow = 'hidden';
+        };
+        window.closeErrorModal = function() { document.getElementById('errorDetailModal').style.display = 'none'; document.body.style.overflow = ''; };
+
+        window.showEditModal = function(index) {
+            currentEditIndex = index;
+            let row = validationResults[index];
+            document.getElementById('edit_name').value = row.name || '';
+            document.getElementById('edit_pinyin').value = row.pinyin || '';
+            document.getElementById('edit_gender').value = row.gender || '男';
+            document.getElementById('edit_country').value = row.country || '中国';
+            document.getElementById('edit_ethnicity').value = row.ethnicity || '';
+            document.getElementById('edit_birth').value = row.birth || '';
+            document.getElementById('edit_idcard').value = row.idcard || '';
+            document.getElementById('edit_majorCode').value = row.majorCode || '';
+            document.getElementById('edit_major').value = row.major || '';
+            document.getElementById('edit_level').value = row.level || '';
+            document.getElementById('editModal').style.display = 'block';
+        };
+        window.closeEditModal = function() { document.getElementById('editModal').style.display = 'none'; };
+        window.generatePinyinFromName = function() {
+            let name = document.getElementById('edit_name').value.trim();
+            if (!name) { alert('请先输入姓名'); return; }
+            let pinyin = getStandardPinyin(name);
+            document.getElementById('edit_pinyin').value = pinyin;
+        };
+        window.saveEditRow = function() {
+            if (currentEditIndex === -1 || !workbooks.currentSheet) return;
+            let sheetInfo = workbooks.sheetMap[workbooks.currentSheet];
+            if (!sheetInfo) return;
+
+            let newData = {
+                name: document.getElementById('edit_name').value.trim(),
+                pinyin: document.getElementById('edit_pinyin').value.trim(),
+                gender: document.getElementById('edit_gender').value,
+                country: document.getElementById('edit_country').value.trim() || '中国',
+                ethnicity: document.getElementById('edit_ethnicity').value.trim(),
+                birth: document.getElementById('edit_birth').value.trim(),
+                idcard: document.getElementById('edit_idcard').value.trim(),
+                majorCode: document.getElementById('edit_majorCode').value.trim(),
+                major: document.getElementById('edit_major').value.trim(),
+                level: document.getElementById('edit_level').value.trim()
+            };
+
+            sheetInfo.data[currentEditIndex] = newData;
+            let newResult = validateRow(newData);
+            sheetInfo.errors[currentEditIndex] = newResult;
+            validationResults = sheetInfo.errors;
+
+            let rawRow = sheetInfo.rawData[currentEditIndex];
+            let headers = sheetInfo.headers;
+            const nameIdx = headers.findIndex(h => h.includes('姓名')||h.toLowerCase().includes('name'));
+            if (nameIdx !== -1) rawRow[nameIdx] = newData.name;
+            const pinyinIdx = headers.findIndex(h => h.includes('拼音')||h.toLowerCase().includes('pinyin'));
+            if (pinyinIdx !== -1) rawRow[pinyinIdx] = newData.pinyin;
+            const genderIdx = headers.findIndex(h => h.includes('性别')||h.toLowerCase().includes('gender'));
+            if (genderIdx !== -1) rawRow[genderIdx] = newData.gender;
+            const countryIdx = headers.findIndex(h => h.includes('国籍')||h.toLowerCase().includes('country'));
+            if (countryIdx !== -1) rawRow[countryIdx] = newData.country;
+            const ethnicityIdx = headers.findIndex(h => h.includes('民族')||h.toLowerCase().includes('ethnicity'));
+            if (ethnicityIdx !== -1) rawRow[ethnicityIdx] = newData.ethnicity;
+            const birthIdx = headers.findIndex(h => h.includes('出生')||h.toLowerCase().includes('birth'));
+            if (birthIdx !== -1) rawRow[birthIdx] = newData.birth;
+            const idIdx = headers.findIndex(h => h.includes('身份证')||h.toLowerCase().includes('id'));
+            if (idIdx !== -1) rawRow[idIdx] = newData.idcard;
+            const majorCodeIdx = headers.findIndex(h => h.includes('专业编码')||h.toLowerCase().includes('major code'));
+            if (majorCodeIdx !== -1) rawRow[majorCodeIdx] = newData.majorCode;
+            const majorIdx = headers.findIndex(h => (h.includes('专业')&&!h.includes('编码'))||h.toLowerCase().includes('major')&&!h.includes('code'));
+            if (majorIdx !== -1) rawRow[majorIdx] = newData.major;
+            const levelIdx = headers.findIndex(h => h.includes('等级')||h.toLowerCase().includes('level'));
+            if (levelIdx !== -1) rawRow[levelIdx] = newData.level;
+
+            renderCurrentSheet(); updateStats();
+            closeEditModal();
+        };
+
+        function openExportSheetModal() {
+            let listDiv = document.getElementById('sheetCheckboxList');
+            if (!workbooks.sheetList.length) { alert('无工作表'); return; }
+            listDiv.innerHTML = workbooks.sheetList.map(uid => {
+                let info = workbooks.sheetMap[uid];
+                return `<div class="sheet-checkbox-item"><label><input type="checkbox" class="sheet-check" value="${uid}" checked> ${info.fileName} → ${info.originalSheetName}</label></div>`;
+            }).join('');
+            document.getElementById('exportSheetModal').style.display = 'block';
+        }
+        window.toggleSelectAll = function(select) {
+            document.querySelectorAll('.sheet-check').forEach(cb => cb.checked = select);
+        };
+        window.closeExportSheetModal = function() { document.getElementById('exportSheetModal').style.display = 'none'; };
+        window.exportSelectedSheets = function() {
+            let selected = Array.from(document.querySelectorAll('.sheet-check:checked')).map(cb => cb.value);
+            if (!selected.length) { alert('请至少选择一个工作表'); return; }
+            closeExportSheetModal();
+            const wb = XLSX.utils.book_new();
+            selected.forEach(uid => {
+                let sheetInfo = workbooks.sheetMap[uid];
+                if (!sheetInfo) return;
+                let headers = sheetInfo.headers;
+                let rawRows = sheetInfo.rawData;
+                let errRows = sheetInfo.errors;
+                if (!rawRows.length) return;
+                let fullHeader = [...headers, '拼音校验', '性别校验', '出生校验', '身份证校验', '专业编码校验', '专业校验', '等级校验', '民族校验', '总体状态'];
+                let wsData = [fullHeader];
+                for (let i = 0; i < rawRows.length; i++) {
+                    let rawRow = rawRows[i];
+                    let er = errRows[i] || {};
+                    let paddedRow = [];
+                    for (let j = 0; j < headers.length; j++) {
+                        paddedRow.push(j < rawRow.length ? rawRow[j] : '');
+                    }
+                    wsData.push([
+                        ...paddedRow,
+                        er.pinyinResult?.message || '',
+                        er.genderResult?.message || '',
+                        er.birthResult?.message || '',
+                        er.idCardResult?.message || '',
+                        er.majorCodeResult?.message || '',
+                        er.majorResult?.message || '',
+                        er.levelResult?.message || '',
+                        er.ethnicityResult?.message || '',
+                        er.overallMessage || ''
+                    ]);
+                }
+                let safeName = (sheetInfo.fileName + '_' + sheetInfo.originalSheetName).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0,25);
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), safeName);
+                let errDetail = [['序号','姓名','字段','错误信息','建议']];
+                errRows.forEach((er, idx) => {
+                    if (er.errorDetails && er.errorDetails.length) {
+                        er.errorDetails.forEach(d => errDetail.push([idx+1, er.name, d.field, d.message, d.suggestion]));
+                    }
+                });
+                if (errDetail.length > 1) {
+                    let errName = (sheetInfo.fileName + '_' + sheetInfo.originalSheetName + '_详情').substring(0,25);
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(errDetail), errName);
+                }
+            });
+            let summary = [['工作表','总行数','正确','警告','错误']];
+            selected.forEach(uid => {
+                let e = workbooks.sheetMap[uid]?.errors || [];
+                let total = e.length;
+                let cor = e.filter(r=>r.overallStatus==='success').length;
+                let warn = e.filter(r=>r.overallStatus==='warning').length;
+                let err = e.filter(r=>r.overallStatus==='error').length;
+                let info = workbooks.sheetMap[uid];
+                summary.push([info.fileName + '→' + info.originalSheetName, total, cor, warn, err]);
+            });
+            let totalRow = summary.slice(1).reduce((acc,row)=>{ acc[1]+=row[1]; acc[2]+=row[2]; acc[3]+=row[3]; acc[4]+=row[4]; return acc; }, ['总计',0,0,0,0]);
+            summary.push(totalRow);
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), '汇总统计');
+            let baseName = '多文件校验_' + new Date().toISOString().slice(0,10);
+            XLSX.writeFile(wb, `${baseName}_校验结果.xlsx`);
+        };
+
+        function openGradeModal() {
+            let listDiv = document.getElementById('gradeSheetCheckboxList');
+            if (!workbooks.sheetList.length) { alert('无工作表'); return; }
+            listDiv.innerHTML = workbooks.sheetList.map(uid => {
+                let info = workbooks.sheetMap[uid];
+                return `<div class="sheet-checkbox-item"><label><input type="checkbox" class="grade-check" value="${uid}" checked> ${info.fileName} → ${info.originalSheetName}</label></div>`;
+            }).join('');
+            document.getElementById('exportGradeModal').style.display = 'block';
+        }
+        window.toggleGradeSelectAll = function(select) {
+            document.querySelectorAll('.grade-check').forEach(cb => cb.checked = select);
+        };
+        window.closeGradeModal = function() { document.getElementById('exportGradeModal').style.display = 'none'; };
+        window.exportGradeSummary = function() {
+            let selected = Array.from(document.querySelectorAll('.grade-check:checked')).map(cb => cb.value);
+            if (!selected.length) { alert('请至少选择一个工作表'); return; }
+            closeGradeModal();
+            let summaryData = [['工作表', '等级', '人数']];
+            let grandTotal = 0;
+            selected.forEach(uid => {
+                let sheetInfo = workbooks.sheetMap[uid];
+                if (!sheetInfo) return;
+                let rows = sheetInfo.data;
+                if (rows.length === 0) return;
+                let levelCount = {};
+                rows.forEach(row => {
+                    let level = row.level || '(空)';
+                    levelCount[level] = (levelCount[level] || 0) + 1;
+                });
+                Object.keys(levelCount).sort().forEach(level => {
+                    summaryData.push([sheetInfo.fileName + '→' + sheetInfo.originalSheetName, level, levelCount[level]]);
+                });
+                grandTotal += rows.length;
+            });
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(summaryData);
+            XLSX.utils.book_append_sheet(wb, ws, '人数汇总');
+            let totalSheet = [['工作表', '总人数']];
+            selected.forEach(uid => {
+                let info = workbooks.sheetMap[uid];
+                let cnt = info?.data.length || 0;
+                if (cnt > 0) totalSheet.push([info.fileName + '→' + info.originalSheetName, cnt]);
+            });
+            totalSheet.push(['总计', grandTotal]);
+            const wsTotal = XLSX.utils.aoa_to_sheet(totalSheet);
+            XLSX.utils.book_append_sheet(wb, wsTotal, '工作表总人数');
+            let baseName = '多文件人数_' + new Date().toISOString().slice(0,10);
+            XLSX.writeFile(wb, `${baseName}_人数汇总.xlsx`);
+        };
+
+        function exportReport() {
+            if (!validationResults || !validationResults.length) {
+                alert('没有数据可导出');
+                return;
+            }
+            const wb = XLSX.utils.book_new();
+            const reportData = [];
+            reportData.push(['数据校验详细报告']);
+            reportData.push(['生成时间', new Date().toLocaleString()]);
+            let curInfo = workbooks.sheetMap[workbooks.currentSheet];
+            reportData.push(['工作表', curInfo ? curInfo.fileName + '→' + curInfo.originalSheetName : workbooks.currentSheet]);
+            reportData.push(['总记录数', validationResults.length]);
+            reportData.push(['正确数', validationResults.filter(r => r.overallStatus === 'success').length]);
+            reportData.push(['警告数', validationResults.filter(r => r.overallStatus === 'warning').length]);
+            reportData.push(['错误数', validationResults.filter(r => r.overallStatus === 'error').length]);
+            reportData.push([]);
+            reportData.push(['错误详情']);
+            validationResults.forEach((row, idx) => {
+                if (row.errorDetails.length > 0) {
+                    row.errorDetails.forEach(detail => {
+                        reportData.push([idx + 1, row.name, detail.field, detail.message, detail.suggestion]);
+                    });
+                }
+            });
+            const ws = XLSX.utils.aoa_to_sheet(reportData);
+            XLSX.utils.book_append_sheet(wb, ws, '错误报告');
+            let baseName = curInfo ? curInfo.fileName + '_' + curInfo.originalSheetName : 'report';
+            XLSX.writeFile(wb, `${baseName}_错误报告.xlsx`);
+        }
+
+        document.getElementById('uploadSection').addEventListener('click', () => document.getElementById('fileInput').click());
+        document.getElementById('uploadSection').addEventListener('dragover', (e) => {
+            e.preventDefault();
+            document.getElementById('uploadSection').classList.add('dragover');
+        });
+        document.getElementById('uploadSection').addEventListener('dragleave', () => {
+            document.getElementById('uploadSection').classList.remove('dragover');
+        });
+        document.getElementById('uploadSection').addEventListener('drop', (e) => {
+            e.preventDefault();
+            document.getElementById('uploadSection').classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                parseMultipleFiles(Array.from(e.dataTransfer.files));
+            }
+        });
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                parseMultipleFiles(Array.from(e.target.files));
+            }
+        });
+        document.getElementById('exportBtn').addEventListener('click', openExportSheetModal);
+        document.getElementById('exportGradeBtn').addEventListener('click', openGradeModal);
+        document.getElementById('exportReportBtn').addEventListener('click', exportReport);
+
+        ['filterName', 'filterGender', 'filterMajorCode', 'filterMajor', 'filterLevel', 'filterStatus'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', renderCurrentSheet);
+                if (el.tagName === 'SELECT') el.addEventListener('change', renderCurrentSheet);
+            }
+        });
+        document.getElementById('clearFilters').addEventListener('click', () => {
+            document.getElementById('filterName').value = '';
+            document.getElementById('filterGender').value = '';
+            document.getElementById('filterMajorCode').value = '';
+            document.getElementById('filterMajor').value = '';
+            document.getElementById('filterLevel').value = '';
+            document.getElementById('filterStatus').value = '';
+            renderCurrentSheet();
+        });
+
+        window.onclick = function(e) {
+            if (e.target === document.getElementById('errorDetailModal')) closeErrorModal();
+            if (e.target === document.getElementById('editModal')) closeEditModal();
+            if (e.target === document.getElementById('exportSheetModal')) closeExportSheetModal();
+            if (e.target === document.getElementById('exportGradeModal')) closeGradeModal();
+        };
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeErrorModal(); closeEditModal(); closeExportSheetModal(); closeGradeModal(); } });
+    </script>
+</body>
+</html>

@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片匹配工具 · 智能匹配（wulangsir+无浪科技）</title>
+    <!-- Bootstrap 5 轻量样式 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- SheetJS 处理 Excel，FileSaver 和 JSZip 实现批量下载 -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        .table-img-thumb { max-width: 60px; max-height: 60px; cursor: pointer; object-fit: cover; }
+        .preview-img { max-width: 100%; max-height: 80vh; }
+        .file-name-badge { font-size: 0.8rem; background: #e9ecef; padding: 2px 6px; border-radius: 12px; }
+        .action-col { white-space: nowrap; }
+        .table-responsive { max-height: 500px; overflow-y: auto; }
+        .table thead th { position: sticky; top: 0; background: #f8f9fa; z-index: 10; }
+        .id-card-num { font-family: monospace; font-size: 0.9rem; }
+        .checkbox-col { width: 40px; }
+        .thumb-col { width: 80px; }
+        .stat-badge { font-size: 0.9rem; margin-left: 10px; }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container py-4">
+        <h2 class="mb-3">📸 照片匹配（wulangsir+无浪科技）</h2>
+
+        <!-- 第一步：上传 Excel 及列映射 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white fw-bold">1️⃣ 导入Excel，选择姓名列与辅助列（默认查找身份证号码）</div>
+            <div class="card-body">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-4">
+                        <label for="excelFile" class="form-label">上传Excel文件</label>
+                        <input type="file" class="form-control" id="excelFile" accept=".xlsx, .xls, .csv">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="nameColSelect" class="form-label">姓名列</label>
+                        <select id="nameColSelect" class="form-select" disabled>
+                            <option value="">—</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="idColSelect" class="form-label">身份证号码</label>
+                        <select id="idColSelect" class="form-select" disabled>
+                            <option value="">—</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" id="applyDeduplicateBtn" disabled>应用去重规则</button>
+                    </div>
+                </div>
+                <div class="form-text mt-2">
+                    ✅ 规则：姓名唯一 → 命名用“姓名”；姓名重复但身份证不同 → 命名用“姓名+身份证”；姓名+身份证均相同 → 只保留一行（去重）。
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二步：选择照片文件夹 + 操作按钮组 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white fw-bold">2️⃣ 选择照片文件夹 & 匹配（优化：提取中文姓名+智能身份证）</div>
+            <div class="card-body">
+                <div class="row g-2 align-items-center">
+                    <div class="col-auto">
+                        <input type="file" class="form-control" id="folderInput" webkitdirectory directory multiple accept="image/*">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-outline-secondary" id="matchPhotosBtn" disabled>🔄 匹配图片到表格</button>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-success" id="downloadSelectedBtn" disabled>📦 批量下载选中（ZIP）</button>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-outline-primary" id="selectAllBtn">✅ 全选/取消</button>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-info" id="exportUnmatchedBtn" disabled>📊 导出未匹配报表</button>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col">
+                        <span class="badge bg-secondary" id="matchStat">匹配统计: 0 / 0 (姓名/照片)</span>
+                    </div>
+                </div>
+                <div class="form-text mt-2">
+                    📁 照片命名增强：优先提取连续中文字符作为姓名；并尝试提取最长的数字串(≥15位或X结尾)作为身份证，用于精准匹配。<br>
+                    匹配成功缩略图显示在首列，点击图片可放大预览。
+                </div>
+            </div>
+        </div>
+
+        <!-- 表格展示区 -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                <span>📋 处理后数据（含去重及命名预览）</span>
+                <span class="badge bg-secondary" id="rowCount">0 行</span>
+            </div>
+            <div class="card-body p-2">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle mb-0" id="dataTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="checkbox-col"><input type="checkbox" id="checkAll"></th>
+                                <th class="thumb-col">照片</th>
+                                <th>姓名</th>
+                                <th>辅助列（身份证号码）</th>
+                                <th>最终命名(下载用)</th>
+                                <th class="action-col">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <tr><td colspan="6" class="text-center text-muted py-4">请先上传Excel并应用去重规则</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图片放大预览模态框 -->
+    <div class="modal fade" id="previewModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">图片预览</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img src="" alt="预览" class="preview-img" id="previewImage">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入bootstrap模态框控制 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        (function() {
+            // ---------- 全局状态 ----------
+            let excelHeaders = [];               // 原始表头数组
+            let rawRows = [];                     // 原始行数据 (二维数组)
+            let uniqueRows = [];                   // 去重后的行对象数组: { name, idNum, finalName, photoFile, photoUrl, checked }
+            let currentPhotoFiles = [];             // 最近一次选择的图片文件列表
+            let matchedFilesSet = new Set();        // 记录已匹配成功的图片文件对象 (用于统计未匹配照片)
+            let modalPreview = null;                 // 用于预览的bootstrap模态框
+
+            // DOM 元素
+            const excelFileInput = document.getElementById('excelFile');
+            const nameColSelect = document.getElementById('nameColSelect');
+            const idColSelect = document.getElementById('idColSelect');
+            const applyBtn = document.getElementById('applyDeduplicateBtn');
+            const folderInput = document.getElementById('folderInput');
+            const matchBtn = document.getElementById('matchPhotosBtn');
+            const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
+            const selectAllBtn = document.getElementById('selectAllBtn');
+            const exportUnmatchedBtn = document.getElementById('exportUnmatchedBtn');
+            const tableBody = document.getElementById('tableBody');
+            const checkAllBox = document.getElementById('checkAll');
+            const rowCountSpan = document.getElementById('rowCount');
+            const matchStatSpan = document.getElementById('matchStat');
+
+            // 初始化bootstrap模态框
+            document.addEventListener('DOMContentLoaded', () => {
+                modalPreview = new bootstrap.Modal(document.getElementById('previewModal'));
+            });
+
+            // ---------- 工具函数 ----------
+            function updateRowCount() {
+                rowCountSpan.innerText = uniqueRows.length + ' 行';
+            }
+
+            // 清除之前的object url避免内存泄漏
+            function revokeAllPhotoUrls() {
+                uniqueRows.forEach(row => {
+                    if (row.photoUrl) {
+                        URL.revokeObjectURL(row.photoUrl);
+                        row.photoUrl = null;
+                    }
+                });
+            }
+
+            // 更新匹配统计和导出按钮状态
+            function updateMatchStats() {
+                const matchedRows = uniqueRows.filter(r => r.photoFile).length;
+                const matchedPhotos = matchedFilesSet.size;
+                matchStatSpan.innerText = `匹配统计: ${matchedRows} 个姓名 / ${matchedPhotos} 张照片`;
+                exportUnmatchedBtn.disabled = (uniqueRows.length === 0 && currentPhotoFiles.length === 0);
+            }
+
+            // 渲染表格 (基于uniqueRows)
+            function renderTable() {
+                if (!uniqueRows.length) {
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">暂无数据，请上传Excel并应用去重规则</td></tr>`;
+                    checkAllBox.checked = false;
+                    updateRowCount();
+                    updateMatchStats();
+                    return;
+                }
+
+                let html = '';
+                uniqueRows.forEach((row, index) => {
+                    const checkedAttr = row.checked ? 'checked' : '';
+                    const thumbHtml = row.photoUrl
+                        ? `<img src="${row.photoUrl}" class="table-img-thumb" data-index="${index}" data-bs-toggle="modal" data-bs-target="#previewModal" style="cursor:pointer;">`
+                        : `<span class="text-muted">无图</span>`;
+                    const idNumDisplay = row.idNum || '<span class="text-muted">—</span>';
+                    html += `<tr>
+                        <td><input type="checkbox" class="row-checkbox" data-index="${index}" ${checkedAttr}></td>
+                        <td>${thumbHtml}</td>
+                        <td>${escapeHtml(row.name)}</td>
+                        <td class="id-card-num">${escapeHtml(row.idNum) || ''}</td>
+                        <td><span class="file-name-badge">${escapeHtml(row.finalName)}</span></td>
+                        <td>
+                            ${row.photoFile ? `<button class="btn btn-sm btn-outline-secondary download-single" data-index="${index}">⬇️单张</button>` : ''}
+                        </td>
+                    </tr>`;
+                });
+                tableBody.innerHTML = html;
+
+                // 绑定预览点击 (图片img本身已经绑定模态框)
+                document.querySelectorAll('.table-img-thumb').forEach(img => {
+                    img.addEventListener('click', (e) => {
+                        const src = e.target.src;
+                        document.getElementById('previewImage').src = src;
+                    });
+                });
+
+                // 绑定单张下载
+                document.querySelectorAll('.download-single').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const index = e.target.dataset.index;
+                        downloadSingleImage(parseInt(index));
+                    });
+                });
+
+                // 绑定行内复选框变化
+                document.querySelectorAll('.row-checkbox').forEach(cb => {
+                    cb.addEventListener('change', (e) => {
+                        const idx = e.target.dataset.index;
+                        if (idx !== undefined) {
+                            uniqueRows[idx].checked = e.target.checked;
+                        }
+                        updateCheckAllState();
+                        updateDownloadButtonState();
+                    });
+                });
+
+                updateRowCount();
+                updateCheckAllState();
+                updateDownloadButtonState();
+                updateMatchStats();
+            }
+
+            function escapeHtml(unsafe) {
+                if (unsafe === undefined || unsafe === null) return '';
+                return String(unsafe).replace(/[&<>"]/g, function(m) {
+                    if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; if (m === '"') return '&quot;';
+                    return m;
+                });
+            }
+
+            // 全选逻辑
+            checkAllBox.addEventListener('change', (e) => {
+                const checked = e.target.checked;
+                uniqueRows.forEach(row => row.checked = checked);
+                renderTable(); // 重绘同步复选框
+            });
+
+            selectAllBtn.addEventListener('click', () => {
+                const newState = !(uniqueRows.every(r => r.checked) && uniqueRows.length > 0);
+                uniqueRows.forEach(row => row.checked = newState);
+                renderTable();
+            });
+
+            function updateCheckAllState() {
+                if (uniqueRows.length === 0) {
+                    checkAllBox.checked = false;
+                    checkAllBox.indeterminate = false;
+                    return;
+                }
+                const allChecked = uniqueRows.every(r => r.checked);
+                const anyChecked = uniqueRows.some(r => r.checked);
+                checkAllBox.checked = allChecked;
+                checkAllBox.indeterminate = !allChecked && anyChecked;
+            }
+
+            function updateDownloadButtonState() {
+                const anyCheckedWithPhoto = uniqueRows.some(r => r.checked && r.photoFile);
+                downloadSelectedBtn.disabled = !anyCheckedWithPhoto;
+            }
+
+            // ---------- 1. 解析Excel ----------
+            excelFileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+                if (sheetData.length < 2) {
+                    alert('Excel至少需要一行标题和一行数据');
+                    return;
+                }
+
+                excelHeaders = sheetData[0].map(h => h ? h.trim() : `列${h}`);
+                rawRows = sheetData.slice(1).filter(row => row.some(cell => cell !== ''));
+
+                nameColSelect.innerHTML = '<option value="">—选择姓名列—</option>';
+                idColSelect.innerHTML = '<option value="">—选择证件列—</option>';
+                excelHeaders.forEach((header, idx) => {
+                    const optionName = `<option value="${idx}">${header} (列${idx+1})</option>`;
+                    const optionId = `<option value="${idx}">${header} (列${idx+1})</option>`;
+                    nameColSelect.innerHTML += optionName;
+                    idColSelect.innerHTML += optionId;
+                });
+
+                // 智能默认：查找标题含“姓名”“名称”的列，以及含“身份证”“证件号码”的列
+                const nameIdx = excelHeaders.findIndex(h => /姓名|名字|name/i.test(h));
+                const idIdx = excelHeaders.findIndex(h => /身份证|证件号码|id|identity|证件号/i.test(h));
+                if (nameIdx >= 0) nameColSelect.value = nameIdx;
+                if (idIdx >= 0) idColSelect.value = idIdx;
+
+                nameColSelect.disabled = false;
+                idColSelect.disabled = false;
+                applyBtn.disabled = false;
+            });
+
+            // ---------- 2. 应用去重规则 ----------
+            applyBtn.addEventListener('click', () => {
+                const nameCol = parseInt(nameColSelect.value);
+                const idCol = parseInt(idColSelect.value);
+                if (isNaN(nameCol) || isNaN(idCol)) {
+                    alert('请先选择姓名列和证件号码列');
+                    return;
+                }
+
+                // 清除旧图片URL及匹配记录
+                revokeAllPhotoUrls();
+                matchedFilesSet.clear();
+
+                let tempRows = rawRows.map(row => ({
+                    name: row[nameCol] ? String(row[nameCol]).trim() : '',
+                    idNum: row[idCol] ? String(row[idCol]).trim() : '',
+                })).filter(r => r.name !== '');
+
+                // 按姓名+身份证去重
+                const seen = new Set();
+                let deduped = [];
+                for (let r of tempRows) {
+                    const key = `${r.name}||${r.idNum}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        deduped.push(r);
+                    }
+                }
+
+                // 统计每个姓名出现次数
+                const nameCountMap = new Map();
+                deduped.forEach(r => {
+                    nameCountMap.set(r.name, (nameCountMap.get(r.name) || 0) + 1);
+                });
+
+                uniqueRows = deduped.map(r => {
+                    const count = nameCountMap.get(r.name) || 1;
+                    let finalName = r.name;
+                    if (count > 1) {
+                        finalName = r.name + '_' + r.idNum;
+                    }
+                    return {
+                        name: r.name,
+                        idNum: r.idNum,
+                        finalName: finalName,
+                        photoFile: null,
+                        photoUrl: null,
+                        checked: false,
+                    };
+                });
+
+                renderTable();
+            });
+
+            // ---------- 3. 处理图片文件夹 ----------
+            folderInput.addEventListener('change', (e) => {
+                currentPhotoFiles = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+                matchBtn.disabled = currentPhotoFiles.length === 0 || uniqueRows.length === 0;
+                // 重置匹配文件集合（因为新选择文件夹，之前匹配关系失效）
+                matchedFilesSet.clear();
+                // 同时清除表格中的图片关联
+                revokeAllPhotoUrls();
+                uniqueRows.forEach(r => { r.photoFile = null; r.photoUrl = null; });
+                renderTable();
+                if (currentPhotoFiles.length > 0) {
+                    console.log(`已选择 ${currentPhotoFiles.length} 个图片文件`);
+                }
+            });
+
+            // 优化匹配函数：从文件名提取姓名（中文）和身份证候选（最长数字串）
+            function extractInfoFromFileName(fileName) {
+                // 移除扩展名
+                const baseName = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+                // 提取所有中文字符作为姓名
+                const chineseName = baseName.replace(/[^\u4e00-\u9fa5]/g, '');
+                // 提取所有数字串（包括X结尾的身份证）
+                const numberMatches = baseName.match(/\d+[Xx]?|\d+/g) || [];
+                // 身份证候选：优先取长度≥15的，否则取最长数字串
+                let possibleId = '';
+                if (numberMatches.length) {
+                    const longIds = numberMatches.filter(m => m.replace(/X/i, '').length >= 15);
+                    if (longIds.length > 0) {
+                        possibleId = longIds[0]; // 取第一个长串
+                    } else {
+                        // 取最长
+                        possibleId = numberMatches.reduce((a, b) => a.length > b.length ? a : b, '');
+                    }
+                }
+                return { chineseName, possibleId };
+            }
+
+            // 匹配图片按钮（优化后）
+            matchBtn.addEventListener('click', async () => {
+                if (!uniqueRows.length) {
+                    alert('请先应用去重规则生成数据');
+                    return;
+                }
+                if (!currentPhotoFiles.length) {
+                    alert('请先选择图片文件夹');
+                    return;
+                }
+
+                // 清除之前匹配的图片URL和匹配记录
+                revokeAllPhotoUrls();
+                uniqueRows.forEach(r => { r.photoFile = null; r.photoUrl = null; });
+                matchedFilesSet.clear();
+
+                const photos = [...currentPhotoFiles];
+                const matchedRowIndices = new Set(); // 记录已匹配的行索引
+
+                for (let file of photos) {
+                    const { chineseName, possibleId } = extractInfoFromFileName(file.name);
+                    if (!chineseName) continue; // 无中文无法匹配
+
+                    // 尝试匹配uniqueRows中尚未匹配的行
+                    let matchedRow = null;
+                    let matchedIndex = -1;
+
+                    // 策略1：精确姓名 + 身份证匹配（如果possibleId存在）
+                    if (possibleId) {
+                        const candidate = uniqueRows.find((r, idx) =>
+                            !matchedRowIndices.has(idx) &&
+                            r.name === chineseName &&
+                            r.idNum && (r.idNum.includes(possibleId) || possibleId.includes(r.idNum))
+                        );
+                        if (candidate) {
+                            matchedRow = candidate;
+                            matchedIndex = uniqueRows.indexOf(candidate);
+                        }
+                    }
+
+                    // 策略2：仅姓名匹配，要求该姓名在表中唯一（或者虽然多但可能靠身份证已匹配过）
+                    if (!matchedRow) {
+                        const candidates = uniqueRows
+                            .map((r, idx) => ({ r, idx }))
+                            .filter(item => !matchedRowIndices.has(item.idx) && item.r.name === chineseName);
+                        if (candidates.length === 1) {
+                            matchedRow = candidates[0].r;
+                            matchedIndex = candidates[0].idx;
+                        } else if (candidates.length > 1 && possibleId) {
+                            // 多候选但之前没匹配上身份证，再尝试严格包含（防止possibleId长度问题）
+                            const strictCandidate = candidates.find(item =>
+                                item.r.idNum && (item.r.idNum.includes(possibleId) || possibleId.includes(item.r.idNum))
+                            );
+                            if (strictCandidate) {
+                                matchedRow = strictCandidate.r;
+                                matchedIndex = strictCandidate.idx;
+                            }
+                        }
+                    }
+
+                    if (matchedRow && matchedIndex !== -1) {
+                        matchedRowIndices.add(matchedIndex);
+                        matchedRow.photoFile = file;
+                        matchedRow.photoUrl = URL.createObjectURL(file);
+                        matchedFilesSet.add(file); // 记录已匹配图片
+                    }
+                }
+
+                renderTable();
+                updateMatchStats();
+            });
+
+            // ---------- 下载单张 ----------
+            function downloadSingleImage(index) {
+                const row = uniqueRows[index];
+                if (!row || !row.photoFile) return;
+                const ext = row.photoFile.name.split('.').pop() || 'jpg';
+                const fileName = `${row.finalName}.${ext}`;
+                const blob = new Blob([row.photoFile], { type: row.photoFile.type });
+                saveAs(blob, fileName);
+            }
+
+            // ---------- 批量下载选中（ZIP）----------
+            downloadSelectedBtn.addEventListener('click', async () => {
+                const selected = uniqueRows.filter(r => r.checked && r.photoFile);
+                if (selected.length === 0) {
+                    alert('未选中任何包含图片的行');
+                    return;
+                }
+
+                const zip = new JSZip();
+                const folder = zip.folder('照片');
+
+                for (let row of selected) {
+                    const file = row.photoFile;
+                    const ext = file.name.split('.').pop() || 'jpg';
+                    const fileName = `未找到${row.finalName}.${ext}照片`;
+                    const buffer = await file.arrayBuffer();
+                    folder.file(fileName, buffer);
+                }
+
+                const content = await zip.generateAsync({ type: 'blob' });
+                saveAs(content, '匹配照片.zip');
+            });
+
+            // ---------- 导出未匹配报表（两个sheet）----------
+            exportUnmatchedBtn.addEventListener('click', () => {
+                // 收集未匹配的姓名行
+                const unmatchedNames = uniqueRows.filter(r => !r.photoFile).map(r => ({
+                    '姓名': r.name,
+                    '证件号码': r.idNum || '',
+                    '备注': r.finalName
+                }));
+
+                // 收集未匹配的照片文件
+                const allPhotoFilesSet = new Set(currentPhotoFiles);
+                const unmatchedPhotos = Array.from(allPhotoFilesSet).filter(f => !matchedFilesSet.has(f)).map(f => ({
+                    '文件名': f.name,
+                    '照片路径(仅供参考)': f.webkitRelativePath || f.name
+                }));
+
+                // 创建工作簿
+                const wb = XLSX.utils.book_new();
+
+                // Sheet1: 未匹配姓名
+                const ws1 = unmatchedNames.length ? XLSX.utils.json_to_sheet(unmatchedNames) : XLSX.utils.aoa_to_sheet([['暂无未匹配姓名']]);
+                XLSX.utils.book_append_sheet(wb, ws1, '没有找到照片的学员');
+
+                // Sheet2: 未匹配照片
+                const ws2 = unmatchedPhotos.length ? XLSX.utils.json_to_sheet(unmatchedPhotos) : XLSX.utils.aoa_to_sheet([['暂无未匹配照片']]);
+                XLSX.utils.book_append_sheet(wb, ws2, '未匹配的照片');
+
+                // 生成Excel文件
+                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([wbout], { type: 'application/octet-stream' });
+                saveAs(blob, '未匹配报表.xlsx');
+            });
+
+            // 辅助：更新下载按钮状态 (每次checkbox改变时调用)
+            document.addEventListener('change', (e) => {
+                if (e.target.classList.contains('row-checkbox') || e.target.id === 'checkAll') {
+                    updateDownloadButtonState();
+                }
+            });
+
+            // 清理资源
+            window.addEventListener('beforeunload', () => {
+                revokeAllPhotoUrls();
+            });
+
+        })();
+    </script>
+</body>
+</html>
