@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📚 无浪科技书签管理系统</title>
+<!-- 使用 SheetJS 解析 Excel -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<style>
+/* ===== 完整样式 ===== */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#242836;--surface3:#2f3448;
+  --border:#2e3348;--text:#e4e6f0;--text2:#8b8fa3;--text3:#5a5e72;
+  --accent:#6c8cff;--accent2:#5b6eab;--accent-bg:rgba(108,140,255,.1);
+  --danger:#ff6b6b;--star:#ffd43b;--success:#51cf66;--warn:#ffc078;
+  --radius:12px;--shadow:0 4px 16px rgba(0,0,0,.3);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ===== 顶部栏 ===== */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;backdrop-filter:blur(16px)}
+.topbar h1{font-size:18px;font-weight:700;white-space:nowrap;user-select:none}
+.topbar h1 span{color:var(--accent)}
+.search-box{flex:1;max-width:440px;position:relative}
+.search-box input{width:100%;padding:9px 14px 9px 38px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;outline:none;transition:.2s}
+.search-box input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+.search-box::before{content:'🔍';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px}
+.toolbar{display:flex;align-items:center;gap:8px;margin-left:auto}
+.sort-select{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;outline:none;cursor:pointer}
+.sort-select:focus{border-color:var(--accent)}
+
+/* ===== 按钮 ===== */
+.btn{padding:7px 16px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent2);transform:translateY(-1px)}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid transparent}.btn-danger:hover{background:rgba(255,107,107,.1);border-color:rgba(255,107,107,.3)}
+.btn-warn{background:var(--warn);color:#000}.btn-warn:hover{opacity:.85}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-icon{padding:6px;background:none;border:none;cursor:pointer;font-size:16px;border-radius:6px;transition:.15s;line-height:1}
+.btn-icon:hover{background:var(--surface3)}
+
+/* ===== 统计 + 筛选 ===== */
+.sub-bar{padding:10px 28px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content: center;}
+.stat-chip{background:var(--surface);border:1px solid var(--border);padding:5px 12px;border-radius:16px;font-size:12px;display:flex;align-items:center;gap:5px}
+.stat-chip .n{color:var(--accent);font-weight:700}
+.filter-bar{padding:20px 28px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.filter-bar .label{font-size:16px;margin-right:2px;padding: 4px 12px;font-weight: bolder;
+    border-radius: 14px;}
+.cat-tag{padding:4px 12px;border-radius:14px;font-size:16px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text2);transition:.15s}
+.cat-tag:hover,.cat-tag.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ===== 批量操作 ===== */
+.batch-bar{display:none;padding:10px 28px;background:var(--accent-bg);border-bottom:1px solid var(--accent2);align-items:center;gap:12px;font-size:13px}
+.batch-bar.show{display:flex}
+.batch-bar .count{color:var(--accent);font-weight:700}
+
+/* ===== 书签卡片 ===== */
+.main{padding:14px 28px 64px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;transition:.2s;position:relative}
+.card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.card.selected{border-color:var(--accent);background:var(--accent-bg)}
+.card .top{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px}
+.card .favicon{width:16px;height:16px;border-radius:3px;flex-shrink:0;margin-top:2px}
+.card .title{font-size:13px;font-weight:600;word-break:break-word;cursor:pointer;flex:1;line-height:1.4}
+.card .title:hover{color:var(--accent)}
+.card .url{font-size:11px;color:var(--text3);word-break:break-all;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cat-badge{font-size:10px;padding:2px 8px;border-radius:8px;background:var(--accent-bg);color:var(--accent)}
+.tag-badge{font-size:10px;padding:2px 6px;border-radius:8px;background:var(--surface3);color:var(--text2)}
+.card .time{font-size:10px;color:var(--text3);margin-top:6px}
+.card .actions{position:absolute;top:10px;right:10px;display:flex;gap:1px;opacity:0;transition:.2s}
+.card:hover .actions{opacity:1}
+.star{font-size:14px;cursor:pointer;background:none;border:none;transition:.15s}
+.star.on{color:var(--star);text-shadow:0 0 6px rgba(255,212,59,.4)}
+.star:not(.on){color:var(--text3);opacity:.3}
+.card .check{position:absolute;top:10px;left:10px;display:none}
+.card.batch-mode .check{display:block}
+.card .check input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+
+/* ===== 空状态 ===== */
+.empty{text-align:center;padding:80px 20px;color:var(--text3)}
+.empty .icon{font-size:48px;margin-bottom:12px}
+
+/* ===== 模态框 ===== */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
+.overlay.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:500px;max-width:92vw;max-height:88vh;overflow-y:auto;animation:modalIn .2s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal h2{font-size:17px;margin-bottom:18px}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:500}
+.fg input,.fg select,.fg textarea{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;outline:none;transition:.2s}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+.fg .hint{font-size:11px;color:var(--text3);margin-top:3px}
+.fg textarea{resize:vertical;min-height:80px;font-family:'Consolas','Monaco',monospace;font-size:12px}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+
+/* ===== 拖拽上传区域 ===== */
+.drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:40px 20px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:16px}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:var(--accent-bg)}
+.drop-zone .icon{font-size:40px;margin-bottom:10px}
+.drop-zone .text{font-size:14px;color:var(--text2);margin-bottom:6px}
+.drop-zone .sub{font-size:12px;color:var(--text3)}
+.drop-zone input[type=file]{display:none}
+
+/* 导入预览 */
+.import-preview{max-height:200px;overflow-y:auto;background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;margin-top:12px}
+.import-preview .item{padding:4px 0;display:flex;gap:8px;align-items:center}
+.import-preview .item .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.import-preview .item .url{color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.import-preview .count{color:var(--accent);font-weight:600;margin-bottom:6px}
+
+/* ===== 下拉菜单 ===== */
+.dropdown{position:relative}
+.dd-menu{display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;min-width:180px;z-index:150;box-shadow:var(--shadow)}
+.dd-menu.show{display:block;animation:modalIn .15s ease}
+.dd-menu a,.dd-menu button{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;font-size:12px;color:var(--text);text-decoration:none;background:none;border:none;width:100%;cursor:pointer;text-align:left}
+.dd-menu a:hover,.dd-menu button:hover{background:var(--surface2)}
+.dd-divider{height:1px;background:var(--border);margin:4px 0}
+
+/* ===== Toast ===== */
+.toast-box{position:fixed;top:16px;right:16px;z-index:999;display:flex;flex-direction:column;gap:6px}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:13px;animation:slideIn .25s ease;box-shadow:var(--shadow);display:flex;align-items:center;gap:8px}
+.toast.ok{border-left:3px solid var(--success)}.toast.err{border-left:3px solid var(--danger)}.toast.info{border-left:3px solid var(--accent)}
+@keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+
+/* ===== 响应式 ===== */
+@media(max-width:768px){
+  .topbar,.sub-bar,.filter-bar,.main{padding-left:14px;padding-right:14px}
+  .grid{grid-template-columns:1fr}
+  .toolbar{display:none}
+  .topbar::after{content:'';clear:both;display:table}
+}
+
+/* 滚动条 */
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+</style>
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<div class="topbar">
+  <h1>📚 <span>无浪科技书签</span>管理</h1>
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="搜索标题、URL、标签..." oninput="handleSearch(this.value)">
+  </div>
+  <div class="toolbar">
+    <select class="sort-select" id="sortSelect" onchange="loadBookmarks()">
+      <option value="newest">最新优先</option>
+      <option value="oldest">最早优先</option>
+      <option value="az">标题 A→Z</option>
+      <option value="fav">收藏优先</option>
+    </select>
+    <button class="btn btn-primary" onclick="openAddModal()">＋ 添加</button>
+    <button class="btn btn-ghost" onclick="toggleBatchMode()">☐ 选择</button>
+    <button class="btn btn-ghost" onclick="autoClassify()">⚡ 分类</button>
+    <div class="dropdown">
+      <button class="btn btn-ghost" onclick="toggleMenu('exportMenu')">📥 导出</button>
+      <div class="dd-menu" id="exportMenu">
+        <a href="#" onclick="exportBookmarks('json');return false;">📄 JSON 格式</a>
+        <a href="#" onclick="exportBookmarks('js');return false;">📜 JavaScript (.js)</a>
+        <a href="#" onclick="exportBookmarks('md');return false;">📝 Markdown 格式</a>
+        <a href="#" onclick="exportBookmarks('csv');return false;">📊 CSV / Excel</a>
+        <a href="#" onclick="exportBookmarks('html');return false;">🌐 浏览器书签 HTML</a>
+      </div>
+    </div>
+    <div class="dropdown">
+      <button class="btn btn-ghost" onclick="toggleMenu('importMenu')">📤 导入</button>
+      <div class="dd-menu" id="importMenu">
+        <button onclick="openImportModal('html')">🌐 浏览器书签 (.html)</button>
+        <button onclick="openImportModal('csv')">📊 CSV / Excel (.csv)</button>
+        <button onclick="openImportModal('md')">📝 Markdown (.md)</button>
+        <button onclick="openImportModal('json')">📄 JSON (.json)</button>
+        <button onclick="openImportModal('js')">📜 JavaScript (.js)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 统计 -->
+<div class="sub-bar" id="statsBar"></div>
+
+<!-- 分类筛选 -->
+<div class="filter-bar" id="filterBar"><span class="label">分类：</span></div>
+
+<!-- 批量操作栏 -->
+<div class="batch-bar" id="batchBar">
+  <span>已选 <span class="count" id="selectedCount">0</span> 项</span>
+  <button class="btn btn-sm btn-ghost" onclick="selectAll()">全选当前</button>
+  <button class="btn btn-sm btn-danger" onclick="batchDelete()">🗑️ 删除选中</button>
+  <button class="btn btn-sm btn-ghost" onclick="toggleBatchMode()">取消</button>
+</div>
+
+<!-- 书签列表 -->
+<div class="main"><div class="grid" id="grid"></div></div>
+
+<!-- 添加/编辑模态框 -->
+<div class="overlay" id="modal">
+  <div class="modal">
+    <h2 id="modalTitle">添加书签</h2>
+    <div class="fg"><label>URL *</label><input type="url" id="f_url" placeholder="https://example.com"></div>
+    <div class="fg"><label>标题</label><input type="text" id="f_title" placeholder="留空自动使用 URL"></div>
+    <div class="fg">
+      <label>分类</label>
+      <select id="f_cat">
+        <option>其它/未分类</option>
+        <option value="">自动分类</option>
+        <option>学习教育</option>
+        <option>开发文档</option>
+        <option>技术博客</option>
+        <option>AI / 机器学习</option>
+        <option>设计资源</option>
+        <option>视频平台</option>
+        <option>社交媒体</option>
+        <option>新闻资讯</option>
+        <option>购物电商</option>
+        <option>工具网站</option>
+      </select>
+      <div class="hint">选择"自动分类"将根据 URL 和标题智能归类</div>
+    </div>
+    <div class="fg"><label>标签（逗号分隔）</label><input type="text" id="f_tags" placeholder="vue, react, 前端"></div>
+    <div class="fg" style="display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="f_fav" style="width:auto;accent-color:var(--accent)">
+      <label for="f_fav" style="margin:0;font-size:13px">⭐ 收藏</label>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal')">取消</button>
+      <button class="btn btn-primary" id="modalBtn" onclick="submitBookmark()">添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 导入模态框 -->
+<div class="overlay" id="importModal">
+  <div class="modal" style="width:560px">
+    <h2>📤 导入书签</h2>
+    <div class="fg">
+      <label>导入格式</label>
+      <select id="importType" onchange="updateImportHint()">
+        <option value="html">🌐 浏览器书签文件 (.html)</option>
+        <option value="csv">📊 CSV / Excel 文件 (.csv)</option>
+        <option value="md">📝 Markdown 文件 (.md)</option>
+        <option value="json">📄 JSON 文件 (.json)</option>
+        <option value="js">📜 JavaScript 文件 (.js)</option>
+      </select>
+    </div>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+         ondragover="event.preventDefault();this.classList.add('dragover')"
+         ondragleave="this.classList.remove('dragover')"
+         ondrop="handleDrop(event)">
+      <div class="icon">📂</div>
+      <div class="text">点击选择文件或拖拽到此处</div>
+      <div class="sub" id="importHint">支持 Chrome、Edge、Firefox 导出的书签 HTML 文件</div>
+      <input type="file" id="fileInput" accept=".html,.htm,.csv,.md,.json,.js" onchange="handleFile(this.files[0])">
+    </div>
+    <div id="importPreview"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('importModal')">取消</button>
+      <button class="btn btn-warn" id="importBtn" onclick="doImport()" style="display:none">确认导入 <span id="importCount"></span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-box" id="toastBox"></div>
+
+<script>
+// ==================== 数据核心 ====================
+let all = [];               // 所有书签 { id, url, title, category, tags, favorite, createdAt }
+let filtered = [];          // 当前筛选/搜索后的书签
+let currentFilter = '全部';  // 当前选中的分类
+let currentSort = 'newest';  // 当前排序
+let searchTerm = '';         // 搜索词
+let batchMode = false;       // 是否批量选择模式
+let selectedIds = new Set(); // 选中的 id
+let editingId = null;        // 编辑中的书签 id
+let pendingImport = null;    // 待导入的数据 { type, content }
+
+// ==================== 域名到分类的映射表 ====================
+const domainCategoryMap = [
+  // 开发文档
+  { domains: ['arxiv.org', 'github.com', 'gitlab.com', 'stackoverflow.com', 'stackexchange.com', 'developer.mozilla.org', 'docs.', 'dev.'], category: '开发文档' },
+  // 设计资源
+  { domains: ['dribbble.com', 'iconfont.cn', 'behance.net', 'figma.com', 'sketch.com', 'colorhunt.co', 'uigradients.com', 'coolors.co'], category: '设计资源' },
+  // 技术博客
+  { domains: ['medium.com', 'dev.to', 'css-tricks.com', 'smashingmagazine.com', 'infoq.com', 'pluralsight.com', 'juejin.cn', 'segmentfault.com'], category: '技术博客' },
+  // AI / 机器学习
+  { domains: ['openrouter.ai', 'openai.com', 'huggingface.co', 'tensorflow.org', 'pytorch.org', 'kaggle.com', 'colab.research.google.com'], category: 'AI / 机器学习' },
+  // 社交媒体
+  { domains: ['weibo.com', 'twitter.com', 'x.com', 'facebook.com', 'instagram.com', 'linkedin.com', 'tiktok.com', 'reddit.com'], category: '社交媒体' },
+  // 新闻资讯
+  { domains: ['bbc.com', 'cnn.com', 'nytimes.com', 'theguardian.com', 'reuters.com', 'zhihu.com', '36kr.com', 'huxiu.com'], category: '新闻资讯' },
+  // 购物电商
+  { domains: ['taobao.com', 'tmall.com', 'jd.com', 'pinduoduo.com', 'amazon.com', 'ebay.com', 'shopify.com'], category: '购物电商' },
+  // 工具网站
+  { domains: ['eolink.com', 'escape.bmcx.com', '51aspx.com', 'sccnn.com', 'win7999.com', 'ymjd.com', '8taobaodian.com', 'quanwang.cn', 'ltw55.com', 'dkewl.com', 'mukedw.com'], category: '工具网站' },
+  // 学习教育
+  { domains: ['coursera.org', 'udemy.com', 'edx.org', 'khanacademy.org', 'whinfo.91wllm.cn'], category: '学习教育' },
+  // 视频平台
+  { domains: ['youtube.com', 'bilibili.com', 'vimeo.com', 'twitch.tv', 'netflix.com'], category: '视频平台' }
+];
+
+// ==================== 优化后的自动分类函数 ====================
+function extractCategoryFromUrl(url) {
+  try {
+    if (!url || (!url.startsWith('http') && !url.startsWith('https'))) return '未分类';
+    const hostname = new URL(url).hostname.toLowerCase();
+
+    // 遍历映射表
+    for (let entry of domainCategoryMap) {
+      for (let domain of entry.domains) {
+        // 如果域名中包含映射的关键词（支持子域名匹配）
+        if (hostname.includes(domain)) {
+          return entry.category;
+        }
+      }
+    }
+    return '未分类'; // 未匹配到任何分类
+  } catch {
+    return '未分类';
+  }
+}
+
+// ==================== 初始化 ====================
+async function init() {
+  // 1. 尝试 localStorage
+  const local = localStorage.getItem('bookmarkManager');
+  if (local) {
+    try {
+      all = JSON.parse(local);
+      if (Array.isArray(all) && all.length) {
+        all = all.map(b => ({ ...b, tags: b.tags || [] }));
+        renderAll();
+        return;
+      }
+    } catch (e) { console.warn('localStorage 解析失败'); }
+  }
+
+  // 2. 尝试加载 bookmarks.js (通过 script)
+  try {
+    await loadFromScript();
+    if (all.length) {
+      saveToLocal();
+      renderAll();
+      return;
+    }
+  } catch (e) { console.warn('bookmarks.js 加载失败', e); }
+
+  // 3. 尝试加载 bookmarks.json (fetch)
+  try {
+    const response = await fetch('./bookmarks.json', { cache: 'no-cache' });
+    if (response.ok) {
+      const json = await response.json();
+      if (Array.isArray(json) && json.length) {
+        all = json.map(b => ({ ...b, tags: b.tags || [] }));
+        saveToLocal();
+        renderAll();
+        return;
+      }
+    }
+  } catch (e) { console.warn('bookmarks.json 加载失败'); }
+
+  // 4. 都失败，显示空状态
+  renderAll();
+  toast('可通过“导入”添加书签', 'info');
+}
+
+// 通过 script 加载 bookmarks.js (期望全局变量 bookmarksData)
+function loadFromScript() {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = './bookmarks.js';
+    script.onload = () => {
+      if (window.bookmarksData && Array.isArray(window.bookmarksData)) {
+        all = window.bookmarksData.map(b => ({ ...b, tags: b.tags || [], favorite: !!b.favorite }));
+        delete window.bookmarksData;
+        resolve();
+      } else {
+        reject(new Error('bookmarks.js 中未找到 bookmarksData'));
+      }
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+// 保存到 localStorage
+function saveToLocal() {
+  localStorage.setItem('bookmarkManager', JSON.stringify(all));
+}
+
+// ==================== 辅助函数 ====================
+// 转义 HTML
+function esc(s) {
+  if (s === undefined || s === null) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// 显示 toast
+function toast(msg, type = 'ok') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toastBox').appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(20px)';
+    el.style.transition = '.3s';
+    setTimeout(() => el.remove(), 300);
+  }, 2800);
+}
+
+// ==================== 渲染 ====================
+function renderAll() {
+  applyFilterAndSort();
+  updateStats();
+  renderCategories();
+  renderGrid();
+}
+
+function applyFilterAndSort() {
+  let list = [...all];
+  // 分类筛选
+  if (currentFilter !== '全部') {
+    list = list.filter(b => b.category === currentFilter);
+  }
+  // 搜索
+  if (searchTerm) {
+    const term = searchTerm.toLowerCase();
+    list = list.filter(b =>
+      b.title.toLowerCase().includes(term) ||
+      b.url.toLowerCase().includes(term) ||
+      (b.tags && b.tags.some(t => t.toLowerCase().includes(term)))
+    );
+  }
+  // 排序
+  const sort = document.getElementById('sortSelect').value;
+  if (sort === 'newest') list.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+  else if (sort === 'oldest') list.sort((a,b) => (a.createdAt||0) - (b.createdAt||0));
+  else if (sort === 'az') list.sort((a,b) => a.title.localeCompare(b.title));
+  else if (sort === 'fav') list.sort((a,b) => (b.favorite?1:0) - (a.favorite?1:0));
+
+  filtered = list;
+}
+
+function updateStats() {
+  const total = all.length;
+  const favorites = all.filter(b => b.favorite).length;
+  const categories = {};
+  all.forEach(b => { categories[b.category] = (categories[b.category] || 0) + 1; });
+  const statsHTML = `
+    <div class="stat-chip">📊 总计 <span class="n">${total}</span></div>
+    <div class="stat-chip">⭐ 收藏 <span class="n">${favorites}</span></div>
+    ${Object.entries(categories).map(([k,v]) => `<div class="stat-chip">${k} <span class="n">${v}</span></div>`).join('')}
+  `;
+  document.getElementById('statsBar').innerHTML = statsHTML;
+}
+
+function renderCategories() {
+  const cats = ['全部', ...new Set(all.map(b => b.category))];
+  document.getElementById('filterBar').innerHTML = `<span class="label">分类：</span>` +
+    cats.map(c => `<button class="cat-tag${c === currentFilter ? ' active' : ''}" onclick="filterBy('${c}')">${c}</button>`).join('');
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty"><div class="icon">📭</div><p>还没有书签</p></div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map(b => {
+    let domain = '';
+    try { domain = new URL(b.url).hostname; } catch {}
+    const favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    const time = b.createdAt ? new Date(b.createdAt).toLocaleDateString('zh-CN') : '';
+    const sel = selectedIds.has(b.id);
+    return `<div class="card${sel ? ' selected' : ''}${batchMode ? ' batch-mode' : ''}" data-id="${b.id}">
+      <div class="check"><input type="checkbox" ${sel ? 'checked' : ''} onchange="toggleSelect('${b.id}',this.checked)"></div>
+      <div class="actions">
+        <button class="star ${b.favorite ? 'on' : ''}" onclick="toggleFav('${b.id}')">⭐</button>
+        <button class="btn-icon" onclick="openEditModal('${b.id}')" title="编辑">✏️</button>
+        <button class="btn-icon" onclick="delOne('${b.id}')" title="删除">🗑️</button>
+      </div>
+      <div class="top">
+        <img class="favicon" src="${favicon}" onerror="this.style.display='none'">
+        <div class="title" onclick="window.open('${esc(b.url)}','_blank')">${esc(b.title)}</div>
+      </div>
+      <div class="url">🔗 ${esc(domain)}</div>
+      <div class="meta">
+        <span class="cat-badge">${esc(b.category)}</span>
+        ${(b.tags||[]).map(t => `<span class="tag-badge">#${esc(t)}</span>`).join('')}
+      </div>
+      <div class="time">${time}</div>
+    </div>`;
+  }).join('');
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const bar = document.getElementById('batchBar');
+  const n = selectedIds.size;
+  document.getElementById('selectedCount').textContent = n;
+  bar.classList.toggle('show', batchMode && n > 0);
+}
+
+// ==================== 筛选与搜索 ====================
+function filterBy(c) {
+  currentFilter = c;
+  selectedIds.clear();
+  renderAll();
+}
+
+function handleSearch(q) {
+  searchTerm = q;
+  renderAll();
+}
+
+// ==================== 批量操作 ====================
+function toggleBatchMode() {
+  batchMode = !batchMode;
+  if (!batchMode) selectedIds.clear();
+  renderGrid();
+}
+
+function toggleSelect(id, checked) {
+  if (checked) selectedIds.add(id);
+  else selectedIds.delete(id);
+  renderGrid();
+}
+
+function selectAll() {
+  filtered.forEach(b => selectedIds.add(b.id));
+  renderGrid();
+}
+
+function batchDelete() {
+  if (selectedIds.size === 0) return;
+  if (!confirm(`确定删除选中的 ${selectedIds.size} 条书签？`)) return;
+  all = all.filter(b => !selectedIds.has(b.id));
+  selectedIds.clear();
+  saveToLocal();
+  renderAll();
+  toast('已批量删除', 'ok');
+}
+
+// ==================== 增删改查 ====================
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = '添加书签';
+  document.getElementById('modalBtn').textContent = '添加';
+  ['f_url','f_title','f_tags'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f_cat').value = '';
+  document.getElementById('f_fav').checked = false;
+  document.getElementById('modal').classList.add('show');
+}
+
+function openEditModal(id) {
+  const b = all.find(x => x.id === id);
+  if (!b) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = '编辑书签';
+  document.getElementById('modalBtn').textContent = '保存';
+  document.getElementById('f_url').value = b.url;
+  document.getElementById('f_title').value = b.title;
+  document.getElementById('f_cat').value = b.category;
+  document.getElementById('f_tags').value = (b.tags || []).join(', ');
+  document.getElementById('f_fav').checked = b.favorite;
+  document.getElementById('modal').classList.add('show');
+}
+
+function submitBookmark() {
+  const url = document.getElementById('f_url').value.trim();
+  if (!url) return toast('请输入 URL', 'err');
+  let title = document.getElementById('f_title').value.trim();
+  if (!title) title = url;
+  const category = document.getElementById('f_cat').value || extractCategoryFromUrl(url);
+  const tags = document.getElementById('f_tags').value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+  const favorite = document.getElementById('f_fav').checked;
+
+  const bookmark = {
+    id: editingId || Date.now() + '-' + Math.random().toString(36).substr(2, 6),
+    url,
+    title,
+    category,
+    tags,
+    favorite,
+    createdAt: editingId ? (all.find(b => b.id === editingId)?.createdAt || Date.now()) : Date.now()
+  };
+
+  if (editingId) {
+    const index = all.findIndex(b => b.id === editingId);
+    if (index !== -1) all[index] = bookmark;
+    toast('已更新', 'ok');
+  } else {
+    all.push(bookmark);
+    toast('已添加', 'ok');
+  }
+  saveToLocal();
+  closeModal('modal');
+  renderAll();
+}
+
+function delOne(id) {
+  if (!confirm('确定删除？')) return;
+  all = all.filter(b => b.id !== id);
+  selectedIds.delete(id);
+  saveToLocal();
+  renderAll();
+  toast('已删除', 'ok');
+}
+
+function toggleFav(id) {
+  const b = all.find(x => x.id === id);
+  if (b) {
+    b.favorite = !b.favorite;
+    saveToLocal();
+    renderGrid();
+  }
+}
+
+// ==================== 自动分类 ====================
+function autoClassify() {
+  let changed = 0;
+  all.forEach(b => {
+    const old = b.category;
+    const newCat = extractCategoryFromUrl(b.url);
+    if (newCat !== old) {
+      b.category = newCat;
+      changed++;
+    }
+  });
+  if (changed) {
+    saveToLocal();
+    renderAll();
+    toast(`已更新 ${changed} 个书签分类`, 'ok');
+  } else {
+    toast('分类已经是最新', 'info');
+  }
+}
+
+// ==================== 导出功能 ====================
+function exportBookmarks(format) {
+  if (all.length === 0) return toast('没有书签可导出', 'err');
+  let content, filename, mime;
+  const date = new Date().toISOString().slice(0,10);
+
+  switch (format) {
+    case 'json':
+      content = JSON.stringify(all, null, 2);
+      filename = `bookmarks_${date}.json`;
+      mime = 'application/json';
+      break;
+    case 'js':
+      content = `// 书签数据 (可被 script 标签加载)\nwindow.bookmarksData = ${JSON.stringify(all, null, 2)};`;
+      filename = `bookmarks_${date}.js`;
+      mime = 'application/javascript';
+      break;
+    case 'md':
+      content = '# 书签导出\n\n' + all.map(b => `- [${b.title}](${b.url}) - ${b.category}`).join('\n');
+      filename = `bookmarks_${date}.md`;
+      mime = 'text/markdown';
+      break;
+    case 'csv':
+      const rows = [['标题', 'URL', '分类', '标签', '收藏']];
+      all.forEach(b => rows.push([b.title, b.url, b.category, (b.tags||[]).join(';'), b.favorite ? '是' : '']));
+      content = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+      filename = `bookmarks_${date}.csv`;
+      mime = 'text/csv';
+      break;
+    case 'html':
+      let html = `<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n<TITLE>书签导出</TITLE>\n<H1>书签</H1>\n<DL><p>\n`;
+      const cats = [...new Set(all.map(b => b.category))];
+      cats.sort().forEach(cat => {
+        const catBookmarks = all.filter(b => b.category === cat);
+        html += `    <DT><H3>${cat}</H3>\n    <DL><p>\n`;
+        catBookmarks.forEach(b => {
+          html += `        <DT><A HREF="${b.url}">${b.title}</A>\n`;
+        });
+        html += `    </DL><p>\n`;
+      });
+      html += `</DL><p>`;
+      content = html;
+      filename = `bookmarks_${date}.html`;
+      mime = 'text/html';
+      break;
+    default: return;
+  }
+  const blob = new Blob([content], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(`已导出 ${format} 文件`, 'ok');
+}
+
+// ==================== 导入功能 ====================
+function openImportModal(type) {
+  closeAllMenus();
+  document.getElementById('importType').value = type;
+  updateImportHint();
+  pendingImport = null;
+  document.getElementById('importPreview').innerHTML = '';
+  document.getElementById('importBtn').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('importModal').classList.add('show');
+}
+
+function updateImportHint() {
+  const hints = {
+    html: '支持 Chrome、Edge、Firefox 导出的书签 HTML 文件',
+    csv: '支持本系统导出的 CSV 或通用 CSV（含 URL 列）',
+    md: '支持 Markdown 链接格式 [标题](URL) 或纯 URL 列表',
+    json: '支持本系统导出的 JSON 或通用 JSON 数组',
+    js: '支持本系统导出的 JS 文件（定义 window.bookmarksData）'
+  };
+  document.getElementById('importHint').textContent = hints[document.getElementById('importType').value] || '';
+  const type = document.getElementById('importType').value;
+  const acceptMap = { html: '.html,.htm', csv: '.csv', md: '.md', json: '.json', js: '.js' };
+  document.getElementById('fileInput').accept = acceptMap[type] || '.txt';
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const content = e.target.result;
+    previewImport(content);
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function previewImport(content) {
+  const type = document.getElementById('importType').value;
+  const items = quickParse(content, type);
+  if (!items.length) { toast('未能识别到任何书签', 'err'); return; }
+  pendingImport = { type, content };
+  const preview = document.getElementById('importPreview');
+  preview.innerHTML = `<div class="count">✅ 识别到 ${items.length} 条书签</div>
+    <div class="import-preview">${items.slice(0,50).map(i => `<div class="item"><span class="dot"></span><span class="url">${esc(i.title||i.url)}</span></div>`).join('')}${items.length>50?`<div style="color:var(--text3);padding:4px">... 还有 ${items.length-50} 条</div>`:''}</div>`;
+  document.getElementById('importBtn').style.display = 'inline-flex';
+  document.getElementById('importCount').textContent = `(${items.length} 条)`;
+}
+
+function quickParse(content, type) {
+  if (type === 'html') {
+    const re = /<A\s+[^>]*HREF\s*=\s*"([^"]+)"[^>]*>([\s\S]*?)<\/A>/gi;
+    const r = []; let m;
+    while ((m = re.exec(content)) !== null) {
+      const url = m[1].trim();
+      if (url && !url.startsWith('javascript:') && !url.startsWith('place:'))
+        r.push({ url, title: m[2].replace(/<[^>]+>/g,'').trim() || url });
+    }
+    return r;
+  }
+  if (type === 'md') {
+    const re = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
+    const r = []; let m;
+    while ((m = re.exec(content)) !== null) r.push({ url:m[2], title:m[1]||m[2] });
+    if (!r.length) {
+      const re2 = /https?:\/\/[^\s<>"']+/g;
+      let m2;
+      while ((m2 = re2.exec(content)) !== null) r.push({ url:m2[0], title:m2[0] });
+    }
+    return r;
+  }
+  if (type === 'csv') {
+    const lines = content.split(/\r?\n/).filter(l => l.trim());
+    const r = [];
+    for (let i=1; i<lines.length; i++) {
+      const cols = lines[i].match(/"([^"]*)"|([^,]*)/g)?.map(c => c.replace(/^"|"$/g,'').trim()) || [];
+      const url = cols[1] || cols[0] || '';
+      if (url.startsWith('http')) r.push({ url, title: cols[0] || url });
+    }
+    return r;
+  }
+  if (type === 'json') {
+    try {
+      const d = JSON.parse(content);
+      const a = Array.isArray(d) ? d : d.bookmarks || [];
+      return a.map(b => ({ url: b.url || b.link || '', title: b.title || b.name || '' })).filter(b => b.url);
+    } catch { return []; }
+  }
+  if (type === 'js') {
+    try {
+      const tempGlobal = {};
+      const func = new Function('window', content + '; return window.bookmarksData;');
+      const result = func(tempGlobal);
+      const data = result || tempGlobal.bookmarksData;
+      if (Array.isArray(data)) {
+        return data.map(b => ({ url: b.url || b.link || '', title: b.title || b.name || '' })).filter(b => b.url);
+      }
+    } catch (e) { console.warn('JS 解析失败', e); }
+    return [];
+  }
+  return [];
+}
+
+function doImport() {
+  if (!pendingImport) return;
+  const { type, content } = pendingImport;
+  const items = quickParse(content, type);
+  if (!items.length) return;
+
+  let newCount = 0;
+  items.forEach(item => {
+    if (!item.url) return;
+    if (all.some(b => b.url === item.url)) return;
+    all.push({
+      id: Date.now() + '-' + Math.random().toString(36).substr(2, 6),
+      url: item.url,
+      title: item.title || item.url,
+      category: extractCategoryFromUrl(item.url),
+      tags: [],
+      favorite: false,
+      createdAt: Date.now()
+    });
+    newCount++;
+  });
+  if (newCount) {
+    saveToLocal();
+    renderAll();
+    toast(`成功导入 ${newCount} 个书签`, 'ok');
+  } else {
+    toast('没有新书签可导入', 'info');
+  }
+  closeModal('importModal');
+}
+
+// ==================== 菜单/模态框 ====================
+function toggleMenu(id) {
+  const m = document.getElementById(id);
+  m.classList.toggle('show');
+}
+
+function closeAllMenus(except) {
+  document.querySelectorAll('.dd-menu').forEach(m => { if (m.id !== except) m.classList.remove('show'); });
+}
+
+document.addEventListener('click', e => { if (!e.target.closest('.dropdown')) closeAllMenus(); });
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+});
+
+function loadBookmarks() {
+  renderAll();
+}
+
+// ==================== 启动 ====================
+init();
+</script>
+</body>
+</html>
